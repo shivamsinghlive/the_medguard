@@ -42,7 +42,9 @@ Open **Data quality** and then download the JSON report.
 
 Scroll to **Changes to the dataset**.
 
-> Automatic mitigation stays disabled. Our next service creates a separate preview for a narrow allowlist of changes while protecting outcomes, identifiers, and demographic columns. MedGuard makes uncertainty visible and keeps consequential decisions with the researcher.
+Select **Remove exact duplicate rows** and generate the preview. Show the before/after counts, action evidence, and limitations, then accept it for export.
+
+> MedGuard creates a separate reviewed copy and keeps the audited source unchanged. Demographics, outcomes, predictions, and identifiers are excluded from change targets. Automatic balancing and SMOTE remain unavailable because a cleaning action does not establish improved fairness or model performance.
 
 ## Before presenting
 

@@ -117,6 +117,15 @@ def report_json(report: dict) -> str:
     return json.dumps(report, indent=2, sort_keys=True, allow_nan=False)
 
 
+def reviewed_copy_csv(frame: pd.DataFrame) -> str:
+    """Export a preview copy while retaining traceable source index labels."""
+
+    index_label = "source_row_index"
+    while index_label in frame.columns:
+        index_label = f"_{index_label}"
+    return frame.to_csv(index=True, index_label=index_label)
+
+
 def report_csv(report: dict) -> str:
     """Flatten cohort evidence and findings into one reviewable CSV."""
 
@@ -179,6 +188,23 @@ def report_csv(report: dict) -> str:
                     "status": validation["status"],
                     "code": issue["code"],
                     "title": issue["message"],
+                }
+            )
+    change_preview = report.get("change_preview")
+    if change_preview:
+        accepted = bool(change_preview.get("accepted_for_export", False))
+        for action in change_preview["actions"]:
+            warnings = "; ".join(action["warnings"])
+            writer.writerow(
+                {
+                    "row_type": "change_action",
+                    "status": action["status"],
+                    "code": action["action"],
+                    "title": action["reason"] or (
+                        "Accepted preview action" if accepted else "Unaccepted preview action"
+                    ),
+                    "summary": json.dumps(action["evidence"], sort_keys=True),
+                    "suggested_action": warnings,
                 }
             )
     return output.getvalue()

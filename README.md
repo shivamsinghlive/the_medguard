@@ -17,6 +17,9 @@ The current Streamlit workspace provides:
 - Descriptive data-quality counts for missing cells and duplicated rows.
 - Strict JSON and reviewable CSV exports.
 - Source-preserving analysis. Audit services verify that the input table was not changed.
+- Reviewable previews for five allowlisted cleaning actions on a separate copy.
+- Protected demographic, outcome, prediction, and identifier roles excluded from UI change targets.
+- Explicit preview acceptance followed by a separate CSV export with source-row labels.
 
 Potential identifier screening is a review aid. A result with no matched patterns does not establish HIPAA de-identification.
 
@@ -116,7 +119,7 @@ MedGuard currently does not:
 - Automatically balance cohorts or apply SMOTE.
 - Modify the source dataset.
 
-Safe, explicit change previews are being developed separately and will require user review before export.
+Supported change previews include exact-duplicate removal, missing-row rules on selected features, median or constant missing-value fills, whitespace trimming, and feature-column removal. Any blocked action blocks the complete change set, so the UI never presents a partial result as ready.
 
 ## Team workflow
 
