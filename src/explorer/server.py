@@ -21,6 +21,16 @@ from typing import Any, Dict, List, Optional
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'src'))
 
+# When started as a program, read local settings (for example a Groq key) from the untracked .env
+# file before the explorer modules load. Real environment variables (as on Render) always win, and
+# tests that import this module are unaffected.
+if __name__ == '__main__':
+    try:
+        from dotenv import load_dotenv
+        load_dotenv(ROOT / '.env', override=False)
+    except ImportError:  # the hosted image configures everything through the environment
+        pass
+
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
