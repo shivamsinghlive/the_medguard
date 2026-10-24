@@ -78,7 +78,7 @@ def test_evidence_payload_carries_aggregates_and_no_cell_values(client, source):
 
 def test_preview_accept_and_copy_leave_the_source_unchanged(client, source):
     dataset_id = load(client)
-    before = dataset_fingerprint(server._DATASETS[dataset_id]['frame'])
+    before = dataset_fingerprint(server._datasets('local')[dataset_id]['frame'])
     preview = client.post('/api/preview', json={
         'dataset_id': dataset_id, 'roles': ROLES, 'actions': [{'action': 'drop_duplicate_rows'}],
     }).json()
@@ -92,7 +92,7 @@ def test_preview_accept_and_copy_leave_the_source_unchanged(client, source):
     assert accepted['changes']['accepted'] is True
     copy = client.get('/api/preview/copy.csv', params={'dataset_id': dataset_id, 'preview_id': preview['preview_id']})
     assert copy.status_code == 200 and copy.text.startswith('source_row_index,')
-    assert dataset_fingerprint(server._DATASETS[dataset_id]['frame']) == before
+    assert dataset_fingerprint(server._datasets('local')[dataset_id]['frame']) == before
 
     report = client.post('/api/report', json={'dataset_id': dataset_id, 'roles': ROLES}).json()
     assert report['change_preview']['accepted_for_export'] is True

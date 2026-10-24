@@ -1,13 +1,20 @@
-"""Local HTTP API for MedGuard Explorer. Binds to 127.0.0.1; data stays in memory.
+"""HTTP API for MedGuard Explorer. Data stays in memory and is never written to disk.
 
 Every response is computed from the dataset loaded in this process with the
 deterministic services; nothing is precomputed or hard-coded.
+
+Locally it binds to 127.0.0.1. As a public demo (MEDGUARD_PUBLIC=1) each visitor
+gets a private session, datasets expire after SESSION_TTL_SECONDS, and the local
+AI is off. MEDGUARD_HOST and PORT choose where it listens.
 """
 from collections import OrderedDict
 import hashlib
 import json
+import os
 from pathlib import Path
+import re
 import sys
+import time
 from typing import Any, Dict, List, Optional
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -23,7 +30,7 @@ from explorer import insights, llm, planner
 from services.audit_runner import reviewed_copy_csv, run_audit
 from services.change_preview import preview_changes
 from services.contracts import ChangePreviewError, RepresentationInputError
-from services.input_validation import validate_input
+from services.input_validation import DEFAULT_MAX_BYTES, validate_input
 from services.readiness import (
     DEFAULT_SETTINGS, MISSING_LABEL, ReadinessInputError, _feature_profile, analyze_readiness, apply_filters,
 )
@@ -36,11 +43,43 @@ from utils.audit_input import dataset_fingerprint
 
 DEMO_DIR = ROOT / 'data' / 'synthetic'
 STATIC_DIR = ROOT / 'frontend' / 'dist'
-MAX_DATASETS = 4
+MAX_DATASETS = 2  # per session; older ones are dropped first
+MAX_SESSIONS = 200
+SESSION_TTL_SECONDS = 60 * 60
+SESSION_ID = re.compile(r'^[A-Za-z0-9-]{16,64}$')
 PREVIEW_ROWS = 50
 
 app = FastAPI(title='MedGuard Explorer', version='0.1.0')
-_DATASETS: 'OrderedDict[str, dict]' = OrderedDict()
+_SESSIONS: 'OrderedDict[str, dict]' = OrderedDict()  # session id -> {'seen', 'datasets'}
+
+
+def public_mode() -> bool:
+    return os.environ.get('MEDGUARD_PUBLIC') == '1'
+
+
+def _session_id(request: Optional[Request]) -> str:
+    """The visitor's session from the X-MedGuard-Session header (or ?session= for downloads)."""
+    if request is None:  # internal call, as in tests
+        return 'local'
+    sid = request.headers.get('x-medguard-session') or request.query_params.get('session')
+    if sid and SESSION_ID.match(sid):
+        return sid
+    if public_mode():
+        raise HTTPException(400, 'Missing session. Reload the page to start a new one.')
+    return 'local'
+
+
+def _datasets(session_id: str) -> 'OrderedDict[str, dict]':
+    """This session's datasets; expired and least-recent sessions are dropped first."""
+    now = time.monotonic()
+    for sid in [s for s, v in _SESSIONS.items() if now - v['seen'] > SESSION_TTL_SECONDS]:
+        del _SESSIONS[sid]
+    session = _SESSIONS.setdefault(session_id, {'seen': now, 'datasets': OrderedDict()})
+    session['seen'] = now
+    _SESSIONS.move_to_end(session_id)
+    while len(_SESSIONS) > MAX_SESSIONS:
+        _SESSIONS.popitem(last=False)
+    return session['datasets']
 
 
 class Idea(BaseModel):
@@ -97,15 +136,16 @@ def _json_safe(df: pd.DataFrame) -> List[dict]:
     return json.loads(df.to_json(orient='records', date_format='iso'))
 
 
-def _store(name: str, source: str, data: bytes) -> dict:
+def _store(request: Request, name: str, source: str, data: bytes) -> dict:
     validation, frame = validate_input(data)
     if frame is None:
         return {'accepted': False, 'name': name, 'validation': validation}
     dataset_id = dataset_fingerprint(frame)[:16]
-    _DATASETS[dataset_id] = {'frame': frame, 'validation': validation, 'name': name, 'source': source}
-    _DATASETS.move_to_end(dataset_id)
-    while len(_DATASETS) > MAX_DATASETS:
-        _DATASETS.popitem(last=False)
+    datasets = _datasets(_session_id(request))
+    datasets[dataset_id] = {'frame': frame, 'validation': validation, 'name': name, 'source': source}
+    datasets.move_to_end(dataset_id)
+    while len(datasets) > MAX_DATASETS:
+        datasets.popitem(last=False)
     columns = [{'name': str(c), **{k: v for k, v in _feature_profile(frame[c], str(c), 'feature').items()
                                    if k in ('kind', 'distinct', 'missing_count', 'missing_rate', 'id_like',
                                             'constant', 'top', 'stats')}} for c in frame.columns]
@@ -114,10 +154,12 @@ def _store(name: str, source: str, data: bytes) -> dict:
             'preview': _json_safe(frame.head(PREVIEW_ROWS))}
 
 
-def _dataset(dataset_id: str) -> dict:
-    if dataset_id not in _DATASETS:
-        raise HTTPException(404, 'Dataset not loaded. Load it again (data is kept in memory only).')
-    return _DATASETS[dataset_id]
+def _dataset(request: Optional[Request], dataset_id: str) -> dict:
+    datasets = _datasets(_session_id(request))
+    if dataset_id not in datasets:
+        raise HTTPException(404, 'Dataset not loaded. Load it again (data is kept in memory only, '
+                                 f'for up to {SESSION_TTL_SECONDS // 60} minutes).')
+    return datasets[dataset_id]
 
 
 def _subset(entry: dict, req: AnalyzeRequest) -> pd.DataFrame:
@@ -153,8 +195,8 @@ def _evidence(frame: pd.DataFrame, report: dict, req: AnalyzeRequest) -> dict:
             'quality_tiles': build_quality_tiles(frame, report), 'quality': report['quality']}
 
 
-def _analyze(req: AnalyzeRequest) -> dict:
-    entry = _dataset(req.dataset_id)
+def _analyze(req: AnalyzeRequest, request: Optional[Request] = None) -> dict:
+    entry = _dataset(request, req.dataset_id)
     try:
         frame = _subset(entry, req)
         readiness = analyze_readiness(frame, outcome_column=req.roles.outcome,
@@ -213,8 +255,11 @@ def _preview_response(entry: dict) -> dict:
 
 @app.get('/api/health')
 def health():
-    return {'ok': True, 'ai': llm.status(), 'settings': DEFAULT_SETTINGS, 'widgets': planner.WIDGETS,
-            'titles': insights.TITLES, 'missing_label': MISSING_LABEL}
+    ai = ({'available': False, 'model': llm.DEFAULT_MODEL, 'reason': 'The local model is not part of the public demo.'}
+          if public_mode() else llm.status())
+    return {'ok': True, 'ai': ai, 'settings': DEFAULT_SETTINGS, 'widgets': planner.WIDGETS,
+            'titles': insights.TITLES, 'missing_label': MISSING_LABEL,
+            'public': public_mode(), 'retention_minutes': SESSION_TTL_SECONDS // 60}
 
 
 @app.get('/api/demos')
@@ -223,22 +268,25 @@ def demos():
 
 
 @app.post('/api/datasets/demo/{name}')
-def load_demo(name: str):
+def load_demo(name: str, request: Request):
     path = DEMO_DIR / name
     if path.parent != DEMO_DIR or not path.is_file():
         raise HTTPException(404, 'Unknown demo dataset.')
-    return _store(name, 'bundled_synthetic_demo', path.read_bytes())
+    return _store(request, name, 'bundled_synthetic_demo', path.read_bytes())
 
 
 @app.post('/api/datasets/upload')
 async def upload(request: Request, filename: str = 'upload.csv'):
+    declared = request.headers.get('content-length')
+    if declared and declared.isdigit() and int(declared) > DEFAULT_MAX_BYTES:
+        raise HTTPException(413, f'Files over {DEFAULT_MAX_BYTES // (1024 * 1024)} MB are not accepted.')
     data = await request.body()
-    return _store(Path(filename).name or 'upload.csv', 'uploaded_csv', data)
+    return _store(request, Path(filename).name or 'upload.csv', 'uploaded_csv', data)
 
 
 @app.post('/api/plan')
-def plan(req: PlanRequest):
-    entry = _dataset(req.dataset_id)
+def plan(req: PlanRequest, request: Request):
+    entry = _dataset(request, req.dataset_id)
     frame = entry['frame']
     columns = []
     for c in frame.columns:
@@ -247,25 +295,25 @@ def plan(req: PlanRequest):
                   if profile['kind'] == 'categorical' and profile['distinct'] <= 100 else None)
         columns.append({'name': str(c), 'labels': labels,
                         **{k: v for k, v in profile.items() if k in ('kind', 'distinct', 'id_like', 'top')}})
-    return planner.build_plan(columns, req.idea.model_dump(), use_ai=req.use_ai)
+    return planner.build_plan(columns, req.idea.model_dump(), use_ai=req.use_ai and not public_mode())
 
 
 @app.post('/api/analyze')
-def analyze(req: AnalyzeRequest):
-    return _analyze(req)
+def analyze(req: AnalyzeRequest, request: Request):
+    return _analyze(req, request)
 
 
 @app.post('/api/explain')
-def explain(req: ExplainRequest):
+def explain(req: ExplainRequest, request: Request):
     if req.widget not in insights.TITLES:
         raise HTTPException(422, 'Unknown widget.')
-    results = _analyze(req)
-    return insights.explain(req.widget, results, req.idea.model_dump(), use_ai=req.use_ai)
+    results = _analyze(req, request)
+    return insights.explain(req.widget, results, req.idea.model_dump(), use_ai=req.use_ai and not public_mode())
 
 
 @app.post('/api/preview')
-def preview(req: PreviewRequest):
-    entry = _dataset(req.dataset_id)
+def preview(req: PreviewRequest, request: Request):
+    entry = _dataset(request, req.dataset_id)
     roles = _column_roles(entry['frame'], req.roles)
     try:
         result, output = preview_changes(entry['frame'], req.actions, column_roles=roles)
@@ -278,8 +326,8 @@ def preview(req: PreviewRequest):
     return _preview_response(entry)
 
 
-def _current_preview(dataset_id: str, preview_id: str) -> dict:
-    entry = _dataset(dataset_id)
+def _current_preview(request: Request, dataset_id: str, preview_id: str) -> dict:
+    entry = _dataset(request, dataset_id)
     preview = entry.get('preview')
     if not preview or preview['id'] != preview_id:
         raise HTTPException(409, 'This preview is no longer current. Generate it again.')
@@ -287,8 +335,8 @@ def _current_preview(dataset_id: str, preview_id: str) -> dict:
 
 
 @app.post('/api/preview/accept')
-def accept_preview(req: AcceptRequest):
-    entry = _current_preview(req.dataset_id, req.preview_id)
+def accept_preview(req: AcceptRequest, request: Request):
+    entry = _current_preview(request, req.dataset_id, req.preview_id)
     if entry['preview']['result']['status'] != 'preview_ready':
         raise HTTPException(422, 'A blocked preview cannot be accepted.')
     entry['preview']['accepted'] = True
@@ -296,8 +344,8 @@ def accept_preview(req: AcceptRequest):
 
 
 @app.get('/api/preview/copy.csv')
-def preview_copy(dataset_id: str, preview_id: str):
-    entry = _current_preview(dataset_id, preview_id)
+def preview_copy(dataset_id: str, preview_id: str, request: Request):
+    entry = _current_preview(request, dataset_id, preview_id)
     if not entry['preview']['accepted']:
         raise HTTPException(409, 'Accept the preview before downloading the reviewed copy.')
     return Response(reviewed_copy_csv(entry['preview']['frame']), media_type='text/csv',
@@ -305,9 +353,9 @@ def preview_copy(dataset_id: str, preview_id: str):
 
 
 @app.post('/api/report')
-def report(req: AnalyzeRequest):
-    results = _analyze(req)
-    preview = _dataset(req.dataset_id).get('preview')
+def report(req: AnalyzeRequest, request: Request):
+    results = _analyze(req, request)
+    preview = _dataset(request, req.dataset_id).get('preview')
     if preview and preview['accepted']:
         results['change_preview'] = {**preview['result'], 'accepted_for_export': True}
     body = {'report_type': 'medguard_explorer_readiness', 'report_version': '0.1',
@@ -330,8 +378,11 @@ if STATIC_DIR.is_dir():
 
 def main():
     import uvicorn
-    print('MedGuard Explorer: http://127.0.0.1:8600')
-    uvicorn.run(app, host='127.0.0.1', port=8600, log_level='warning')
+    host = os.environ.get('MEDGUARD_HOST', '127.0.0.1')
+    port = int(os.environ.get('PORT', '8600'))
+    print(f'MedGuard Explorer: http://{host}:{port}' + (' (public demo mode)' if public_mode() else ''))
+    # Access logs stay off so request URLs (file names, ids) are not written anywhere.
+    uvicorn.run(app, host=host, port=port, log_level='warning', access_log=False)
 
 
 if __name__ == '__main__':

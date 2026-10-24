@@ -29,8 +29,24 @@ export type AnalysisRequest = {
 
 export type ChangeAction = Record<string, unknown> & { action: string }
 
+/** One private session per browser tab; the server keeps this session's data apart from everyone else's. */
+function makeSessionId(): string {
+  // randomUUID exists only in secure contexts (HTTPS or localhost).
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID()
+  return Array.from({ length: 4 }, () => Math.random().toString(36).slice(2, 10)).join('-')
+}
+export const SESSION_ID: string = (() => {
+  try {
+    const saved = sessionStorage.getItem('medguard-session')
+    if (saved) return saved
+    const fresh = makeSessionId()
+    sessionStorage.setItem('medguard-session', fresh)
+    return fresh
+  } catch { return makeSessionId() }
+})()
+
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(path, init)
+  const res = await fetch(path, { ...init, headers: { ...(init?.headers ?? {}), 'X-MedGuard-Session': SESSION_ID } })
   if (!res.ok) {
     let detail = res.statusText
     try { detail = (await res.json()).detail ?? detail } catch { /* keep status text */ }
@@ -56,7 +72,7 @@ export const api = {
   preview: (dataset_id: string, roles: Roles, actions: ChangeAction[]) => call<any>('/api/preview', json({ dataset_id, roles, actions })),
   accept: (dataset_id: string, preview_id: string) => call<any>('/api/preview/accept', json({ dataset_id, preview_id })),
   copyUrl: (dataset_id: string, preview_id: string) =>
-    `/api/preview/copy.csv?dataset_id=${encodeURIComponent(dataset_id)}&preview_id=${encodeURIComponent(preview_id)}`,
+    `/api/preview/copy.csv?dataset_id=${encodeURIComponent(dataset_id)}&preview_id=${encodeURIComponent(preview_id)}&session=${encodeURIComponent(SESSION_ID)}`,
 }
 
 export function download(name: string, data: unknown) {

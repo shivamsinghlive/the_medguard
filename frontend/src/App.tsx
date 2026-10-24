@@ -181,9 +181,16 @@ export default function App() {
       <Header step={step} onStep={setStep} maxStep={maxStep} ai={health?.ai} useAi={useAi} onToggleAi={() => setUseAi(!useAi)}
         onSave={dataset ? saveWorkflow : undefined} onLoad={loadWorkflow} onExport={results ? exportReport : undefined}
         onTour={step === 2 && results ? () => setTourOpen(true) : undefined} />
+      {health?.public && (
+        <div className="border-b border-review-200 bg-review-50 px-4 py-2 text-center text-sm text-review-700" role="note">
+          <b>Public demo.</b> Use the bundled synthetic datasets or data that is already de-identified; do not upload patient records.
+          Files are processed in this server's memory, never written to disk, kept apart from other visitors, and deleted after {health.retention_minutes} minutes.
+        </div>
+      )}
       {error && <div className="mx-auto max-w-[1500px] px-6 pt-4"><Note tone="warn">{error}</Note></div>}
       {step === 0 && <StartScreen idea={idea} setIdea={setIdea} demos={demos} dataset={dataset} loading={loading}
-        onDemo={loadDemo} onUpload={upload} onPlan={makePlan} rejected={rejected} />}
+        onDemo={loadDemo} onUpload={upload} onPlan={makePlan} rejected={rejected}
+        publicDemo={!!health?.public} retentionMinutes={health?.retention_minutes} />}
       {step === 1 && plan && dataset && <PlanScreen dataset={dataset} plan={plan} titles={health?.titles ?? {}} roles={roles} setRoles={setRoles}
         focus={focus} setFocus={setFocus} reference={reference} setReference={setReference} settings={settings} setSettings={setSettings}
         widgets={widgets} setWidgets={setWidgets} running={running} onRun={() => run(request())} />}
