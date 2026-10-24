@@ -1,0 +1,165 @@
+{
+  "environment": {
+    "python": "3.11.17",
+    "pandas": "2.1.4",
+    "platform": "Windows-10-10.0.26200-SP0",
+    "processor": "AMD64 Family 25 Model 80 Stepping 0, AuthenticAMD"
+  },
+  "method": "median of 3 runs per stage; seeded fabricated data",
+  "latency": [
+    {
+      "rows": 1000,
+      "columns": 12,
+      "bytes": 66918,
+      "validate_ms": 6.8,
+      "screen_ms": 50.1,
+      "representation_ms": 1.5,
+      "run_audit_ms": 64.9,
+      "export_ms": 0.5,
+      "preview_ms": 20.1,
+      "end_to_end_ms": 72.2
+    },
+    {
+      "rows": 10000,
+      "columns": 12,
+      "bytes": 667835,
+      "validate_ms": 41.5,
+      "screen_ms": 371.0,
+      "representation_ms": 4.9,
+      "run_audit_ms": 445.1,
+      "export_ms": 0.6,
+      "preview_ms": 70.9,
+      "end_to_end_ms": 487.2
+    },
+    {
+      "rows": 50000,
+      "columns": 12,
+      "bytes": 3338342,
+      "validate_ms": 217.5,
+      "screen_ms": 1963.7,
+      "representation_ms": 18.9,
+      "run_audit_ms": 2208.5,
+      "export_ms": 0.5,
+      "preview_ms": 296.8,
+      "end_to_end_ms": 2426.5
+    },
+    {
+      "rows": 200000,
+      "columns": 12,
+      "bytes": 13353813,
+      "validate_ms": 888.3,
+      "screen_ms": 7963.1,
+      "representation_ms": 69.4,
+      "run_audit_ms": 7968.5,
+      "export_ms": 0.4,
+      "preview_ms": 1059.1,
+      "end_to_end_ms": 8857.2
+    }
+  ],
+  "demo_datasets": [
+    {
+      "file": "dataset1_heart_disease_quality.csv",
+      "validation": "accepted",
+      "rows": 1023,
+      "columns": 15,
+      "representation_status": "descriptive_only",
+      "representation_findings": [],
+      "identifier_findings": [
+        {
+          "column": "patient_id",
+          "code": "identifier_column_name",
+          "kind": "record_identifier"
+        }
+      ]
+    },
+    {
+      "file": "dataset2_diabetes_gender_bias.csv",
+      "validation": "accepted",
+      "rows": 1200,
+      "columns": 14,
+      "representation_status": "descriptive_only",
+      "representation_findings": [],
+      "identifier_findings": [
+        {
+          "column": "patient_id",
+          "code": "identifier_column_name",
+          "kind": "record_identifier"
+        },
+        {
+          "column": "patient_id",
+          "code": "unique_values",
+          "kind": null
+        }
+      ]
+    },
+    {
+      "file": "dataset3_heart_disease_indigenous.csv",
+      "validation": "accepted",
+      "rows": 800,
+      "columns": 14,
+      "representation_status": "descriptive_only",
+      "representation_findings": [],
+      "identifier_findings": [
+        {
+          "column": "patient_id",
+          "code": "identifier_column_name",
+          "kind": "record_identifier"
+        },
+        {
+          "column": "patient_id",
+          "code": "unique_values",
+          "kind": null
+        }
+      ]
+    },
+    {
+      "file": "dataset4_diabetes_combined.csv",
+      "validation": "accepted",
+      "rows": 1031,
+      "columns": 17,
+      "representation_status": "descriptive_only",
+      "representation_findings": [],
+      "identifier_findings": [
+        {
+          "column": "patient_id",
+          "code": "identifier_column_name",
+          "kind": "record_identifier"
+        }
+      ]
+    },
+    {
+      "file": "test_synthetic_twin.csv",
+      "validation": "accepted",
+      "rows": 1000,
+      "columns": 14,
+      "representation_status": "descriptive_only",
+      "representation_findings": [],
+      "identifier_findings": [
+        {
+          "column": "patient_id",
+          "code": "identifier_column_name",
+          "kind": "record_identifier"
+        },
+        {
+          "column": "patient_id",
+          "code": "unique_values",
+          "kind": null
+        }
+      ]
+    }
+  ],
+  "screening_probes": {
+    "untitled_person_name": [],
+    "street_address_value": [],
+    "zip_values_benign_column": [],
+    "nine_digit_id_few_rows": [],
+    "unhyphenated_ssn_text": [],
+    "drug_name_column": [],
+    "distinct_lab_codes_text": [
+      "unique_values"
+    ],
+    "version_like_ip": [
+      "ip_address_pattern"
+    ]
+  }
+}
