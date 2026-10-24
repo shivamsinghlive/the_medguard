@@ -35,3 +35,6 @@ outputs/*.png
 
 # Environment
 .env
+
+# Local isolated runtime
+.venv/

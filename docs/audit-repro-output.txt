@@ -1,0 +1,32 @@
+📊 Learning statistical properties from real data...
+  ✓ Learned properties from 500 real patients
+  ✓ Statistical metadata extracted (no patient data stored)
+
+🔄 Generating 500 synthetic patients...
+  ✓ Generated 500 synthetic patients
+  ✓ Preserved statistical properties
+  ✓ Zero real patients included
+✅ Fairness Specialist Agent initialized
+{
+  "single_gender": {
+    "attributes_analyzed": 1,
+    "attributes_with_bias": 0,
+    "status": "FAIR"
+  },
+  "no_demographics": {
+    "attributes_analyzed": 0,
+    "attributes_with_bias": 0,
+    "status": "FAIR"
+  },
+  "email_after_row_100_passes": true,
+  "numeric_identifier_passes": true,
+  "original_correlation": 1.0,
+  "synthetic_correlation": -0.07303386535734628,
+  "fractional_binary_outcomes": 335,
+  "fallback_unmeasured_harm": {
+    "performance_gap_percentage": 10.0,
+    "patients_affected_per_100": 10,
+    "clinical_consequence": "Model may be less accurate for Female patients",
+    "annual_impact_estimate": "Significant impact on underrepresented populations"
+  }
+}

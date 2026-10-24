@@ -17,11 +17,11 @@ seaborn==0.13.0
 streamlit==1.29.0
 
 # AI/LLM Stack
-ollama==0.1.6
+ollama==0.2.1
 pydantic==2.5.3
 
 # RAG & Vector Store
-chromadb>=1.0.0  # Updated: 0.4.22 doesn't have OllamaEmbeddingFunction, 1.0.0+ required
+chromadb==1.0.0  # Pin the vector-store version for reproducible setup
 sentence-transformers==2.3.1
 langchain==0.1.0
 
@@ -37,3 +37,6 @@ python-dotenv==1.0.0
 jupyter==1.0.0
 ipykernel==6.27.1
 pytest==7.4.3
+
+# Compatible with the pinned NumPy 1.x runtime
+pyarrow==17.0.0
