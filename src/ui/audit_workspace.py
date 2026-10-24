@@ -24,9 +24,21 @@ from agents.audit_explainer import (
 from services.change_preview import preview_changes
 from services.contracts import ChangePreviewError, RepresentationInputError
 from services.input_validation import validate_input
+from ui.visuals import (
+    PLOTLY_CONFIG,
+    cohort_distribution_donut,
+    completeness_donut,
+    missingness_lollipop,
+    render_change_map,
+    render_cohort_evidence,
+    render_dataset_mosaic,
+    render_identifier_coverage,
+    render_quality_tiles,
+    render_status_strip,
+)
 
 
-DEMO_PATH = PROJECT_DIR / "data/synthetic/dataset2_diabetes_gender_bias.csv"
+DEMO_PATH = PROJECT_DIR / "data/synthetic/dataset4_diabetes_combined.csv"
 PRIORITY_LABELS = {"high": "Review first", "medium": "Review next", "low": "Context"}
 STATUS_LABELS = {
     "review_needed": "Review needed",
@@ -45,6 +57,41 @@ CHANGE_ACTIONS = {
     "Trim leading and trailing whitespace": "strip_whitespace",
     "Remove a feature column": "drop_column",
 }
+REVIEWED_SOURCES = (
+    {
+        "id": "S4",
+        "label": "Cohort context",
+        "title": "Good Machine Learning Practice",
+        "publisher": "FDA, Health Canada and MHRA · 2021",
+        "summary": (
+            "Intended-population representation and subgroup testing matter; the principles "
+            "do not define a universal numeric disparity threshold."
+        ),
+        "url": "https://www.fda.gov/media/153486/download",
+    },
+    {
+        "id": "S6",
+        "label": "Privacy context",
+        "title": "45 CFR 164.514(b)",
+        "publisher": "HIPAA Privacy Rule · current text",
+        "summary": (
+            "The regulation describes Expert Determination and Safe Harbor. Pattern screening "
+            "alone establishes neither method."
+        ),
+        "url": "https://www.law.cornell.edu/cfr/text/45/164.514",
+    },
+    {
+        "id": "S8",
+        "label": "Missing-data context",
+        "title": "Multiple imputation: potential and pitfalls",
+        "publisher": "BMJ · 2009",
+        "summary": (
+            "Missing at random is an analytical assumption, not something this audit can prove "
+            "from the observed table."
+        ),
+        "url": "https://doi.org/10.1136/bmj.b2393",
+    },
+)
 
 
 st.set_page_config(
@@ -58,27 +105,41 @@ st.markdown(
     """
     <style>
     :root {
-      --mg-night: #0b1f2a; --mg-ink: #17323d; --mg-muted: #58707a;
-      --mg-teal: #087f78; --mg-teal-bright: #43c6b5; --mg-teal-soft: #e7f6f3;
-      --mg-coral: #d66b4b; --mg-coral-soft: #fff0ea; --mg-amber: #91610b;
-      --mg-amber-soft: #fff7df; --mg-surface: #fbfdfc; --mg-border: #d9e6e2;
+      --mg-night: #1A2340; --mg-ink: #1A2340; --mg-muted: #4E5874;
+      --mg-teal: #13B5A6; --mg-teal-bright: #13B5A6; --mg-teal-soft: #DDF6F3;
+      --mg-coral: #FF8A3D; --mg-coral-soft: #FFEBDD; --mg-amber: #8A3A05;
+      --mg-amber-soft: #FFEBDD; --mg-surface: #FFFFFF; --mg-border: #DDE2EE;
+      --mg-cobalt: #2F5BFF; --mg-cobalt-soft: #E6ECFF; --mg-accent-text: #1E3AB8;
     }
     html { scroll-behavior: smooth; }
-    .stApp { background: #f4f8f6; }
+    html, body, [class*="css"] {
+      font-family: "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif; }
+    body { font-variant-numeric: tabular-nums; }
+    .stApp { background:
+      radial-gradient(circle at 82% 4%, rgba(88,101,242,.13), transparent 28rem),
+      radial-gradient(circle at 8% 34%, rgba(26,211,190,.10), transparent 24rem),
+      linear-gradient(180deg, #F4F6FB 0%, #F4F6FB 100%); }
     .block-container { max-width: 1240px; padding-top: 1.35rem; padding-bottom: 5rem; }
-    h1, h2, h3 { color: var(--mg-ink); letter-spacing: -0.035em; }
+    h1, h2, h3, .mg-section-title, .mg-title, [data-testid="stMetricValue"] {
+      color: var(--mg-ink);
+      font-family: "Bricolage Grotesque", "Instrument Sans", system-ui, -apple-system, sans-serif;
+      letter-spacing: -0.035em; }
     p, li, label { color: var(--mg-muted); }
     #MainMenu, footer, [data-testid="stToolbar"] { visibility: hidden; }
     header[data-testid="stHeader"] { background: transparent; }
-    .mg-hero { position: relative; overflow: hidden; padding: 2.25rem 2.35rem;
-      border-radius: 24px; color: white; margin-bottom: 1rem;
-      background: radial-gradient(circle at 88% 12%, rgba(67,198,181,.30), transparent 27%),
-        linear-gradient(128deg, #0b1f2a 0%, #123944 64%, #0b5c5b 100%);
-      box-shadow: 0 20px 50px rgba(11,31,42,.16); }
-    .mg-hero::after { content: ""; position: absolute; width: 260px; height: 260px;
-      right: -95px; bottom: -145px; border: 1px solid rgba(255,255,255,.18);
+    .mg-hero { position: relative; overflow: hidden; padding: 2.5rem 2.65rem; container-type: inline-size;
+      border-radius: 30px; color: white; margin-bottom: 1rem;
+      background: radial-gradient(circle at 78% 18%, rgba(57,210,194,.24), transparent 25%),
+        radial-gradient(circle at 96% 82%, rgba(125,102,255,.28), transparent 28%),
+        linear-gradient(135deg, #071925 0%, #102f43 47%, #163b58 73%, #342a68 100%);
+      box-shadow: 0 26px 70px rgba(25,44,84,.24), inset 0 1px 0 rgba(255,255,255,.12); }
+    .mg-hero::after { content: ""; position: absolute; width: 330px; height: 330px;
+      right: -105px; bottom: -195px; border: 1px solid rgba(255,255,255,.18);
       border-radius: 50%; box-shadow: 0 0 0 38px rgba(255,255,255,.04),
         0 0 0 78px rgba(255,255,255,.025); }
+    .mg-hero-grid { display: grid; grid-template-columns: minmax(0,1.4fr) minmax(270px,.6fr);
+      gap: 2rem; align-items: center; position: relative; z-index: 1; }
+    .mg-hero-copy { min-width: 0; }
     .mg-eyebrow { color: #8ee4d8; font-size: .72rem; font-weight: 800;
       letter-spacing: .14em; text-transform: uppercase; margin-bottom: .75rem; }
     .mg-hero h1 { max-width: 780px; color: white; font-size: clamp(2.15rem, 5vw, 3.7rem);
@@ -87,17 +148,44 @@ st.markdown(
       line-height: 1.65; margin: 0 0 1.35rem; }
     .mg-hero-meta { display: flex; flex-wrap: wrap; gap: .55rem; }
     .mg-chip { display: inline-block; border: 1px solid #abdadd; border-radius: 999px;
-      background: rgba(255,255,255,.08); color: #e9fffb; padding: .36rem .72rem;
+      background: rgba(255,255,255,.09); backdrop-filter: blur(12px); color: #e9fffb; padding: .36rem .72rem;
       font-size: .75rem; font-weight: 700; }
+    .mg-hero-flow { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: .55rem;
+      margin-top: 1.35rem; max-width: 880px; }
+    .mg-flow-step { border-top: 1px solid rgba(255,255,255,.32); padding-top: .65rem;
+      color: #dff4f1; font-size: .72rem; line-height: 1.35; }
+    .mg-flow-step strong { color: white; display: block; font-size: .78rem; margin-bottom: .1rem; }
+    .mg-orbit { position: relative; width: min(100%, 310px); aspect-ratio: 1; margin: auto;
+      display: grid; place-items: center; }
+    .mg-orbit-ring { position: absolute; inset: 8%; border-radius: 50%;
+      border: 1px solid rgba(145,237,227,.30); box-shadow: 0 0 55px rgba(36,217,199,.13); }
+    .mg-orbit-ring.r2 { inset: 22%; border-style: dashed; border-color: rgba(190,180,255,.34);
+      animation: mg-spin 22s linear infinite; }
+    .mg-core { width: 46%; aspect-ratio: 1; border-radius: 50%; display: grid; place-items: center;
+      text-align: center; color: white; font-size: .72rem; font-weight: 750; line-height: 1.3;
+      background: radial-gradient(circle at 34% 28%, #42decf, #177e99 48%, #4742a5 100%);
+      box-shadow: 0 0 0 12px rgba(255,255,255,.04), 0 18px 45px rgba(0,0,0,.28); }
+    .mg-core strong { display: block; font-size: 1.8rem; letter-spacing: -.06em; }
+    .mg-node { position: absolute; padding: .42rem .62rem; border: 1px solid rgba(255,255,255,.18);
+      border-radius: 999px; color: #eafffc; background: rgba(8,28,43,.68); backdrop-filter: blur(10px);
+      font-size: .64rem; font-weight: 800; box-shadow: 0 10px 25px rgba(0,0,0,.16); }
+    .mg-node.n1 { top: 5%; left: 12%; } .mg-node.n2 { right: 0; top: 44%; }
+    .mg-node.n3 { bottom: 5%; left: 7%; }
+    @keyframes mg-spin { to { transform: rotate(360deg); } }
+    @container (max-width: 760px) {
+      .mg-hero-grid { grid-template-columns: 1fr; }
+      .mg-orbit { display: none; }
+    }
     .mg-section { display: flex; align-items: end; justify-content: space-between; gap: 1rem;
       margin: 2.25rem 0 .75rem; }
-    .mg-section-kicker { color: var(--mg-teal); font-size: .7rem; font-weight: 800;
+    .mg-section-kicker { color: var(--mg-accent-text); font-size: .7rem; font-weight: 800;
       letter-spacing: .12em; text-transform: uppercase; }
     .mg-section-title { color: var(--mg-ink); font-size: 1.55rem; font-weight: 760;
       letter-spacing: -.035em; margin-top: .15rem; }
     .mg-section-copy { color: var(--mg-muted); font-size: .86rem; max-width: 480px; text-align: right; }
-    .mg-card { border: 1px solid var(--mg-border); border-radius: 16px; background: white;
-      padding: 1rem 1.1rem; margin: .65rem 0; box-shadow: 0 8px 24px rgba(20,54,62,.055); }
+    .mg-card { border: 1px solid rgba(210,222,236,.86); border-radius: 20px;
+      background: linear-gradient(145deg, rgba(255,255,255,.96), rgba(246,250,255,.92));
+      padding: 1.05rem 1.15rem; margin: .65rem 0; box-shadow: 0 12px 34px rgba(28,48,83,.07); }
     .mg-card.high { border-left: 4px solid var(--mg-coral); }
     .mg-card.medium { border-left: 4px solid #d59b2d; }
     .mg-card.low { border-left: 4px solid var(--mg-teal); }
@@ -110,6 +198,20 @@ st.markdown(
     .mg-warning { border: 1px solid #eed6a5; background: var(--mg-amber-soft); color: #704b08; }
     .mg-empty { border: 1px dashed #9ebdb6; background: rgba(255,255,255,.65);
       color: var(--mg-muted); text-align: center; padding: 2rem; }
+    .mg-review-queue { display: grid; grid-template-columns: auto 1fr auto; align-items: center;
+      gap: 1rem; border: 1px solid rgba(128,152,234,.22); border-radius: 22px;
+      background: linear-gradient(120deg, rgba(255,255,255,.98), rgba(239,247,255,.92));
+      padding: 1.1rem 1.2rem; margin: 1rem 0 1.3rem; box-shadow: 0 16px 42px rgba(39,53,100,.09); }
+    .mg-review-count { display: grid; place-items: center; min-width: 3rem; height: 3rem;
+      border-radius: 16px; background: linear-gradient(135deg,#dcfff7,#e5e4ff); color: #164f6f;
+      font-size: 1.35rem; font-weight: 850; }
+    .mg-review-copy strong { display: block; color: var(--mg-ink); font-size: 1rem; }
+    .mg-review-copy span { color: var(--mg-muted); font-size: .82rem; line-height: 1.45; }
+    .mg-review-copy .mg-review-split { display: block; color: var(--mg-ink); font-weight: 700;
+      margin-top: .3rem; }
+    .mg-review-link { display: inline-block; border-radius: 999px; background: #0b736c;
+      color: white !important; text-decoration: none; padding: .55rem .85rem; font-size: .76rem;
+      font-weight: 800; white-space: nowrap; }
     .mg-status-row { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: .75rem;
       margin: .75rem 0 1rem; }
     .mg-status { border: 1px solid var(--mg-border); background: white; border-radius: 14px;
@@ -127,6 +229,21 @@ st.markdown(
       letter-spacing: .1em; text-transform: uppercase; }
     .mg-explanation { border: 1px solid #c8d8e8; border-radius: 18px; background: #f6f9fd;
       padding: 1.05rem 1.15rem; margin: .75rem 0; }
+    .mg-source-card { position: relative; overflow: hidden; height: 100%;
+      border: 1px solid rgba(207,220,236,.9); border-radius: 20px;
+      background: linear-gradient(145deg, #ffffff, #f7faff); padding: 1.15rem 1.15rem;
+      box-shadow: 0 14px 36px rgba(27,47,84,.075); transition: transform .2s ease, box-shadow .2s ease; }
+    .mg-source-card::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 4px;
+      background: linear-gradient(#26c9b6,#6d63f2); }
+    .mg-source-card:hover { transform: translateY(-3px); box-shadow: 0 20px 42px rgba(27,47,84,.12); }
+    .mg-source-label { color: var(--mg-accent-text); font-size: .66rem; font-weight: 850;
+      letter-spacing: .1em; text-transform: uppercase; }
+    .mg-source-title { color: var(--mg-ink); font-size: .96rem; font-weight: 780;
+      margin: .35rem 0 .12rem; }
+    .mg-source-publisher { color: var(--mg-muted); font-size: .72rem; margin-bottom: .65rem; }
+    .mg-source-summary { color: var(--mg-muted); font-size: .8rem; line-height: 1.5; min-height: 4.8rem; }
+    .mg-source-link { color: #086c64 !important; font-size: .76rem; font-weight: 800;
+      text-decoration-thickness: 1px; text-underline-offset: 3px; }
     .mg-brand { display: flex; align-items: center; gap: .65rem; margin: .3rem 0 1.5rem; }
     .mg-shield { display: grid; place-items: center; width: 2rem; height: 2rem;
       border-radius: 9px 9px 12px 12px; background: var(--mg-night); color: #76ddd0;
@@ -139,33 +256,87 @@ st.markdown(
       border-radius: 50%; background: #dceae6; color: #315e58; font-size: .68rem; font-weight: 800; }
     .mg-step strong { display: block; color: var(--mg-ink); font-size: .82rem; }
     .mg-step span { color: var(--mg-muted); font-size: .72rem; line-height: 1.35; }
-    [data-testid="stMetric"] { border: 1px solid var(--mg-border); border-radius: 12px;
-      background: white; padding: .9rem 1rem; box-shadow: 0 7px 22px rgba(20,54,62,.04); }
+    .mg-nav { display: grid; gap: .28rem; margin: .35rem 0 1rem; }
+    .mg-nav a { color: #315e58 !important; text-decoration: none; border-radius: 8px;
+      padding: .42rem .55rem; font-size: .76rem; font-weight: 700; }
+    .mg-nav a:hover { background: #dceae6; }
+    [data-testid="stMetric"] { position: relative; overflow: hidden; border: 1px solid rgba(211,222,236,.9);
+      border-radius: 18px; background: linear-gradient(145deg,#fff,#f6f9ff); padding: 1rem 1.05rem;
+      box-shadow: 0 12px 32px rgba(29,48,84,.07); }
+    [data-testid="stMetric"]::before { content: ""; position: absolute; left: 0; top: 0; right: 0;
+      height: 3px; background: linear-gradient(90deg,#26c9b6,#6d63f2,#f17f65); }
     [data-testid="stMetricLabel"] { color: var(--mg-muted); }
+    [data-testid="stMetricLabel"] p { white-space: normal; overflow: visible; text-overflow: clip; }
     [data-testid="stMetricValue"] { color: var(--mg-ink); font-size: 1.5rem; font-weight: 760; }
-    [data-testid="stSidebar"] { background: #eef5f2; border-right: 1px solid #d6e4df; }
+    [data-testid="stSidebar"] { background:
+      radial-gradient(circle at 10% 0%, rgba(73,214,197,.17), transparent 16rem),
+      linear-gradient(180deg,#eef5fa,#edf7f4); border-right: 1px solid #d6e4e8; }
     [data-testid="stSidebar"] .block-container { padding-top: 1.25rem; }
     [data-testid="stFileUploader"] { background: white; border-radius: 14px; padding: .35rem .65rem; }
     [data-baseweb="select"] > div { background: white; border-color: #c7d9d4; color: var(--mg-ink); }
     [data-baseweb="select"] input, [data-baseweb="select"] svg { color: var(--mg-ink); fill: var(--mg-ink); }
     [data-baseweb="tag"] { background-color: #0b8178; }
     [data-baseweb="tag"] span { color: white; }
-    .stTabs [data-baseweb="tab-list"] { gap: .25rem; background: #e8f0ed; padding: .3rem;
-      border-radius: 12px; overflow-x: auto; }
-    .stTabs [data-baseweb="tab"] { border-radius: 9px; padding: .45rem .8rem; }
-    .stTabs [aria-selected="true"] { background: white; box-shadow: 0 2px 8px rgba(20,54,62,.08); }
-    .stDownloadButton > button, .stButton > button { border-radius: 10px; font-weight: 700; }
+    .stTabs [data-baseweb="tab-list"] { gap: .28rem; background: rgba(231,238,247,.85); padding: .35rem;
+      border-radius: 15px; overflow-x: auto; backdrop-filter: blur(8px); }
+    .stTabs [data-baseweb="tab"] { border-radius: 11px; padding: .5rem .85rem; }
+    .stTabs [aria-selected="true"] { background: white; color: #37348b;
+      box-shadow: 0 4px 14px rgba(38,52,101,.10); }
+    .stDownloadButton > button, .stButton > button { border-radius: 12px; font-weight: 750;
+      min-height: 2.8rem; transition: transform .18s ease, box-shadow .18s ease; }
+    .stButton > button[kind="primary"] { border: 0; color: white;
+      background: var(--mg-cobalt); box-shadow: 0 9px 24px rgba(47,91,255,.22); }
+    .stButton > button p, .stDownloadButton > button p { color: inherit; }
+    .stButton > button[kind="secondary"] { border: 1px solid var(--mg-border); color: var(--mg-ink);
+      background: white; }
+    .stButton > button[kind="secondary"]:hover { border-color: var(--mg-cobalt); color: var(--mg-accent-text); }
+    .stButton > button:hover, .stDownloadButton > button:hover { transform: translateY(-1px);
+      box-shadow: 0 10px 24px rgba(36,57,100,.13); }
+    .stButton > button:disabled, .stButton > button:disabled:hover {
+      border: 1px dashed #c3ced8; color: #52616c; background: #e9eef3; box-shadow: none;
+      cursor: not-allowed; transform: none; }
+    .mg-viz-head { display: flex; justify-content: space-between; align-items: center;
+      margin: .25rem 0 .65rem; }
+    .mg-viz-title { color: var(--mg-ink); font-size: .9rem; font-weight: 800; }
+    .mg-viz-badge { color: #4a4da6; background: #ececff; border-radius: 999px;
+      padding: .28rem .52rem; font-size: .62rem; font-weight: 850; letter-spacing: .07em; text-transform: uppercase; }
+    .mg-chart-shell { border: 1px solid rgba(209,221,235,.9); border-radius: 20px;
+      background: rgba(255,255,255,.88); padding: .85rem 1rem .4rem;
+      box-shadow: 0 14px 38px rgba(29,48,84,.07); backdrop-filter: blur(8px); }
     .stDownloadButton > button { border-color: #15877d; color: #086c64; background: white; }
-    .stButton > button:focus, .stDownloadButton > button:focus {
+    .stButton > button:focus-visible, .stDownloadButton > button:focus-visible,
+    [data-baseweb="tab"]:focus-visible, [data-baseweb="select"]:focus-within,
+    input:focus-visible, [role="radio"]:focus-visible, [role="checkbox"]:focus-visible {
       outline: 3px solid #62c5ca; outline-offset: 2px;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; } .mg-orbit-ring.r2 { animation: none; }
+      .mg-source-card, .stButton > button, .stDownloadButton > button { transition: none; }
+    }
+    @media (max-width: 1180px) {
+      .mg-section { display: block; }
+      .mg-section-copy { text-align: left; margin-top: .35rem; max-width: none; }
+    }
+    @media (min-width: 641px) and (max-width: 1180px) {
+      [data-testid="stHorizontalBlock"]:has(> [data-testid="column"]:nth-child(4)) {
+        flex-wrap: wrap; row-gap: 1rem; }
+      [data-testid="stHorizontalBlock"]:has(> [data-testid="column"]:nth-child(4))
+        > [data-testid="column"] {
+        flex: 1 1 calc(50% - 1rem) !important; width: calc(50% - 1rem) !important;
+        min-width: calc(50% - 1rem) !important; }
     }
     @media (max-width: 700px) {
       .block-container { padding: .8rem .8rem 3rem; }
       .mg-hero { padding: 1.6rem 1.25rem; border-radius: 18px; }
       .mg-hero h1 { font-size: 2.2rem; }
+      .mg-hero-grid { grid-template-columns: 1fr; }
+      .mg-orbit { display: none; }
       .mg-section { display: block; }
       .mg-section-copy { text-align: left; margin-top: .35rem; }
       .mg-status-row { grid-template-columns: 1fr; }
+      .mg-hero-flow { grid-template-columns: repeat(2,minmax(0,1fr)); }
+      .mg-review-queue { grid-template-columns: auto 1fr; }
+      .mg-review-link { grid-column: 1 / -1; text-align: center; }
     }
     </style>
     """,
@@ -192,9 +363,17 @@ def priority_card(finding: dict) -> None:
     )
 
 
-def reference_for_demo(enabled: bool, columns: list[str]) -> dict | None:
+def reference_for_demo(
+    enabled: bool,
+    columns: list[str],
+    frame: pd.DataFrame,
+    first_share_percent: int,
+) -> dict | None:
     if enabled and "sex" in columns:
-        return {"sex": {"Male": 0.5, "Female": 0.5}}
+        labels = frame["sex"].dropna().value_counts().index.tolist()
+        if len(labels) == 2:
+            first_share = first_share_percent / 100
+            return {"sex": {labels[0]: first_share, labels[1]: 1 - first_share}}
     return None
 
 
@@ -209,6 +388,16 @@ def clear_change_state() -> None:
     st.session_state["selected_change_actions"] = []
 
 
+def observed_split_summary(attribute: dict, limit: int = 3) -> str:
+    """Describe the largest observed groups for one attribute without judging them."""
+
+    groups = [group for group in attribute["groups"] if group["count"]]
+    shares = " · ".join(f"{group['label']} {group['proportion']:.1%}" for group in groups[:limit])
+    if len(groups) > limit:
+        shares += f" · +{len(groups) - limit} more"
+    return f"Observed {attribute['column']}: {shares}"
+
+
 with st.sidebar:
     st.markdown(
         '<div class="mg-brand"><div class="mg-shield">MG</div><div>'
@@ -216,13 +405,27 @@ with st.sidebar:
         '</div></div>',
         unsafe_allow_html=True,
     )
-    st.caption("STEP 1 OF 3 · CHOOSE A SOURCE")
+    st.caption("START HERE · CHOOSE A SOURCE")
     source = st.radio(
         "Data source",
         ["Guided demo", "Upload CSV"],
         help="The guided demo opens immediately and uses synthetic records.",
     )
     st.divider()
+    st.caption("JUMP TO")
+    st.markdown(
+        '<nav class="mg-nav" aria-label="Workspace sections">'
+        '<a href="#review-scope">1 · Assign roles</a>'
+        '<a href="#review-evidence">2 · Review evidence</a>'
+        '<a href="#reviewed-context">3 · Check source context</a>'
+        '<a href="#preview-changes">4 · Preview changes</a>'
+        '<a href="#optional-explanation">5 · Optional explanation</a>'
+        '<a href="#export-evidence">6 · Export evidence</a>'
+        '</nav>',
+        unsafe_allow_html=True,
+    )
+    st.divider()
+    st.caption("WORKFLOW")
     st.markdown(
         '<div class="mg-step"><div class="mg-step-num">1</div><div><strong>Load</strong>'
         '<span>Validate structure and screen potential identifiers.</span></div></div>'
@@ -238,13 +441,25 @@ with st.sidebar:
 
 
 st.markdown(
-    '<div class="mg-hero"><div class="mg-eyebrow">Healthcare dataset readiness · DS+X 2026</div>'
-    '<h1>See the evidence before you train.</h1>'
-    '<div class="mg-lede">MedGuard turns a healthcare CSV into a reviewable record of cohort '
-    'coverage, data quality, and potential identifier signals—without changing a single row.</div>'
-    '<div class="mg-hero-meta"><span class="mg-chip">Deterministic checks</span>'
-    '<span class="mg-chip">Source preserved</span><span class="mg-chip">Offline-ready demo</span>'
-    '<span class="mg-chip">Honest unknowns</span></div></div>',
+    '<div class="mg-hero"><div class="mg-hero-grid"><div class="mg-hero-copy">'
+    '<div class="mg-eyebrow">Healthcare dataset intelligence · DS+X 2026</div>'
+    '<h1>See the evidence.<br>Shape better data.</h1>'
+    '<div class="mg-lede">See the evidence before you train. Explore cohort coverage, data '
+    'quality, and potential identifier signals in one visual command center.</div>'
+    '<div class="mg-hero-meta"><span class="mg-chip">✦ Deterministic checks</span>'
+    '<span class="mg-chip">◈ Source preserved</span><span class="mg-chip">◉ Offline-ready</span>'
+    '<span class="mg-chip">◇ Honest unknowns</span></div>'
+    '<div class="mg-hero-flow">'
+    '<div class="mg-flow-step"><strong>01 · Validate</strong>Gate unsafe structure</div>'
+    '<div class="mg-flow-step"><strong>02 · Inspect</strong>Map measured signals</div>'
+    '<div class="mg-flow-step"><strong>03 · Preview</strong>Test changes safely</div>'
+    '<div class="mg-flow-step"><strong>04 · Export</strong>Carry evidence forward</div>'
+    '</div></div>'
+    '<div class="mg-orbit" aria-hidden="true"><div class="mg-orbit-ring"></div>'
+    '<div class="mg-orbit-ring r2"></div><div class="mg-core"><div><strong>360°</strong>'
+    'DATA VIEW</div></div><div class="mg-node n1">COHORT</div>'
+    '<div class="mg-node n2">PRIVACY</div><div class="mg-node n3">QUALITY</div></div>'
+    '</div></div>',
     unsafe_allow_html=True,
 )
 
@@ -290,11 +505,12 @@ if validation["warnings"]:
     for warning in validation["warnings"]:
         st.warning(warning["message"])
 st.caption(
-    f"✓ Input accepted · {validation['byte_count']:,} bytes · {validation['row_count']:,} rows · "
+    f"Input accepted · {validation['byte_count']:,} bytes · {validation['row_count']:,} rows · "
     f"{validation['column_count']:,} columns"
 )
 
 
+st.markdown('<div id="review-scope"></div>', unsafe_allow_html=True)
 st.markdown(
     '<div class="mg-section"><div><div class="mg-section-kicker">Step 2 · Assign roles</div>'
     '<div class="mg-section-title">Define the review scope</div></div>'
@@ -362,21 +578,40 @@ if prediction_column != "Not selected":
     column_roles[prediction_column] = "prediction"
 
 use_demo_reference = False
+reference_first_share = 50
 if source == "Guided demo" and "sex" in demographic_columns:
     use_demo_reference = st.checkbox(
-        "Compare `sex` with an illustrative 50/50 reference",
+        "Compare `sex` with a reference",
         value=False,
         help=(
             "This optional reference is supplied only for the guided demo. A percentage-point "
             "difference is descriptive and does not trigger a universal cutoff."
         ),
     )
+    if use_demo_reference:
+        recorded_labels = data["sex"].dropna().value_counts().index.tolist()
+        if len(recorded_labels) == 2:
+            reference_first_share = st.slider(
+                f"Reference share for {recorded_labels[0]} (%)",
+                min_value=0,
+                max_value=100,
+                value=50,
+                help=(
+                    f"The remaining share is assigned to {recorded_labels[1]}. Labels remain "
+                    "exactly as recorded."
+                ),
+            )
 
 try:
     report = run_audit(
         data,
         demographic_columns=demographic_columns,
-        reference_proportions=reference_for_demo(use_demo_reference, demographic_columns),
+        reference_proportions=reference_for_demo(
+            use_demo_reference,
+            demographic_columns,
+            data,
+            reference_first_share,
+        ),
         source_type=source_type,
         input_validation=validation,
     )
@@ -388,6 +623,41 @@ representation = report["representation"]
 quality = report["quality"]
 screening = report["identifier_screening"]
 
+st.markdown(
+    '<div class="mg-section"><div><div class="mg-section-kicker">Measured at a glance</div>'
+    '<div class="mg-section-title">Audit status</div></div>'
+    '<div class="mg-section-copy">Status words come directly from the audit contract. '
+    'They organize review and do not certify safety or fairness.</div></div>',
+    unsafe_allow_html=True,
+)
+render_status_strip(report)
+
+st.markdown(
+    '<div class="mg-section"><div><div class="mg-section-kicker">Interactive row map</div>'
+    '<div class="mg-section-title">Explore measured row flags</div></div>'
+    '<div class="mg-section-copy">Each square carries aggregate row flags only. '
+    'No raw record is copied into the component.</div></div>',
+    unsafe_allow_html=True,
+)
+missing_focus = None
+if quality["missing_by_column"]:
+    focus_choice = st.selectbox(
+        "Missing-values focus",
+        ["All columns"] + list(quality["missing_by_column"]),
+        help=(
+            "Choosing a column opens the mosaic on the Missing values lens for that column and "
+            "highlights it in Data quality. The audit itself does not change."
+        ),
+    )
+    missing_focus = None if focus_choice == "All columns" else focus_choice
+render_dataset_mosaic(
+    data,
+    report,
+    demographic_column=demographic_columns[0] if demographic_columns else None,
+    focus_column=missing_focus,
+)
+
+st.markdown('<div id="review-evidence"></div>', unsafe_allow_html=True)
 st.markdown(
     '<div class="mg-section"><div><div class="mg-section-kicker">Step 3 · Review evidence</div>'
     f'<div class="mg-section-title">{escape(source_label)}</div></div>'
@@ -413,12 +683,87 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+review_count = len(representation["findings"]) + len(screening["findings"])
+if screening["findings"]:
+    review_title = f"{review_count} signal{'s' if review_count != 1 else ''} ready for review"
+    review_copy = (
+        "Start with Identifier screening, then confirm that the selected cohort scope matches "
+        "the intended study population."
+    )
+elif representation["findings"]:
+    review_title = f"{review_count} cohort signal{'s' if review_count != 1 else ''} ready for review"
+    review_copy = "Open Cohort evidence to inspect counts, denominators, and recorded labels."
+else:
+    review_title = "No configured review rule triggered"
+    review_copy = (
+        "The measurements are still descriptive. Inspect the evidence and limitations before "
+        "deciding whether this dataset fits the intended use."
+    )
+split_lines = "".join(
+    f'<span class="mg-review-split">{escape(observed_split_summary(attribute))}</span>'
+    for attribute in representation["attributes"][:2]
+    if attribute["groups"] and attribute["observed_count"]
+)
+if split_lines:
+    split_lines += (
+        "<span>Observed shares are descriptive; no threshold is applied. Compare them with "
+        "the intended population in Cohort evidence.</span>"
+    )
+st.markdown(
+    f'<div class="mg-review-queue" role="status">'
+    f'<div class="mg-review-count" aria-label="{review_count} review signals">{review_count}</div>'
+    f'<div class="mg-review-copy"><strong>{escape(review_title)}</strong>'
+    f'<span>{escape(review_copy)}</span>{split_lines}</div>'
+    '<a class="mg-review-link" href="#evidence-tabs">Review evidence ↓</a></div>',
+    unsafe_allow_html=True,
+)
 
+st.markdown('<div id="evidence-tabs"></div>', unsafe_allow_html=True)
 overview_tab, cohorts_tab, privacy_tab, quality_tab, data_tab = st.tabs(
     ["Overview", "Cohort evidence", "Identifier screening", "Data quality", "Data preview"]
 )
 
 with overview_tab:
+    st.markdown(
+        '<div class="mg-viz-head"><div class="mg-viz-title">Dataset pulse</div>'
+        '<div class="mg-viz-badge">Live from validated data</div></div>',
+        unsafe_allow_html=True,
+    )
+    visual_col1, visual_col2 = st.columns(2)
+    with visual_col1:
+        with st.container(border=True):
+            if representation["attributes"] and representation["attributes"][0]["groups"]:
+                pulse_attribute = representation["attributes"][0]
+                largest_group = max(pulse_attribute["groups"], key=lambda group: group["count"])
+                st.markdown(f"**{pulse_attribute['column']} · observed distribution**")
+                st.caption(
+                    f"Largest recorded group: {largest_group['label']} · "
+                    f"{largest_group['proportion']:.1%}."
+                )
+                st.plotly_chart(
+                    cohort_distribution_donut(pulse_attribute),
+                    use_container_width=True,
+                    config=PLOTLY_CONFIG,
+                )
+            else:
+                st.markdown("**Cohort distribution**")
+                st.caption("Choose a demographic column to reveal the observed composition.")
+                st.markdown('<div class="mg-empty">No cohort role selected</div>', unsafe_allow_html=True)
+    with visual_col2:
+        with st.container(border=True):
+            total_cells = max(report["dataset"]["row_count"] * report["dataset"]["column_count"], 1)
+            observed_cells = max(total_cells - quality["missing_cells"], 0)
+            observed_percent = observed_cells / total_cells * 100
+            st.markdown("**Cell coverage · measured completeness**")
+            st.caption(f"{observed_percent:.1f}% of cells contain a value.")
+            st.plotly_chart(
+                completeness_donut(
+                    total_cells=total_cells,
+                    missing_cells=quality["missing_cells"],
+                ),
+                use_container_width=True,
+                config=PLOTLY_CONFIG,
+            )
     if representation["findings"]:
         st.markdown("### What needs review")
         for finding in representation["findings"]:
@@ -440,7 +785,7 @@ with cohorts_tab:
     if not representation["attributes"]:
         st.info("Select at least one demographic column to view cohort evidence.")
     for attribute in representation["attributes"]:
-        st.markdown(f"### {attribute['column']}")
+        render_cohort_evidence(attribute)
         rows = []
         for group in attribute["groups"]:
             rows.append(
@@ -462,24 +807,10 @@ with cohorts_tab:
                     ),
                 }
             )
-        table = pd.DataFrame(rows)
-        chart_values = pd.DataFrame(
-            {
-                "Observed share (%)": [
-                    round(group["proportion"] * 100, 1)
-                    if group["proportion"] is not None else 0
-                    for group in attribute["groups"]
-                ]
-            },
-            index=[group["label"] for group in attribute["groups"]],
-        )
-        chart_col, table_col = st.columns([0.85, 1.15])
-        with chart_col:
-            st.bar_chart(chart_values, height=245, color="#17998f")
-        with table_col:
-            st.dataframe(table, use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
         st.caption(
-            f"Denominator: {attribute['observed_count']:,} nonmissing values. "
+            f"Text alternative for {attribute['column']}. Denominator: "
+            f"{attribute['observed_count']:,} nonmissing values. "
             f"Missing values: {attribute['missing_count']:,}."
         )
     with st.expander("Measured representation result"):
@@ -487,6 +818,7 @@ with cohorts_tab:
 
 with privacy_tab:
     st.markdown("### Potential identifier screening")
+    render_identifier_coverage(screening)
     st.markdown(
         '<div class="mg-warning"><strong>This is a screening result, not privacy clearance.</strong> '
         'A result with no listed patterns does not establish HIPAA de-identification.</div>',
@@ -494,10 +826,6 @@ with privacy_tab:
     )
     st.write(f"**Status:** {SCREENING_STATUS_LABELS[screening['status']]}")
     coverage = screening["coverage"]
-    coverage_cols = st.columns(3)
-    coverage_cols[0].metric("Rows screened", f"{coverage['rows_scanned']:,}")
-    coverage_cols[1].metric("Columns screened", f"{coverage['column_count']:,}")
-    coverage_cols[2].metric("Checks applied", f"{len(coverage['checks']):,}")
     st.caption(
         f"Checked column names and values across {coverage['rows_scanned']:,} of "
         f"{coverage['row_count']:,} rows and {coverage['column_count']:,} columns."
@@ -507,28 +835,38 @@ with privacy_tab:
             priority_card(finding)
     else:
         st.info("None of the listed identifier patterns matched in the reported coverage.")
-    with st.expander("Scope and limitations"):
-        for limitation in screening["limitations"]:
-            st.write(f"- {limitation}")
+    st.markdown("#### Screening limitations")
+    for limitation in screening["limitations"]:
+        st.write(f"- {limitation}")
     with st.expander("Measured screening result"):
         st.json(screening)
 
 with quality_tab:
-    quality_cols = st.columns(3)
-    quality_cols[0].metric("Missing cells", f"{quality['missing_cells']:,}")
-    quality_cols[1].metric("Columns with missing data", quality["columns_with_missing_values"])
-    quality_cols[2].metric("Rows in duplicate sets", quality["duplicate_rows"])
+    render_quality_tiles(data, report)
     if quality["missing_by_column"]:
-        st.dataframe(
-            pd.DataFrame(
-                [
-                    {"Column": column, "Missing values": count}
-                    for column, count in quality["missing_by_column"].items()
-                ]
+        missing_chart_data = pd.DataFrame(
+            [
+                {
+                    "Column": column,
+                    "Missing values": count,
+                    "Missing share": f"{count / max(len(data), 1):.1%}",
+                    "Role": column_roles.get(column, "feature"),
+                    "Protected": "protected" if column_roles.get(column) != "feature" else "",
+                }
+                for column, count in quality["missing_by_column"].items()
+            ]
+        )
+        st.plotly_chart(
+            missingness_lollipop(
+                quality["missing_by_column"], len(data), column_roles, focus_column=missing_focus
             ),
             use_container_width=True,
-            hide_index=True,
+            config=PLOTLY_CONFIG,
         )
+        if missing_focus:
+            st.caption(f"Focus column: {missing_focus}. The mosaic shows its missing rows.")
+        with st.expander("View missingness table"):
+            st.dataframe(missing_chart_data, use_container_width=True, hide_index=True)
     else:
         st.write("No missing cells were observed.")
     st.caption("These are descriptive quality counts; no automatic cleaning has been applied.")
@@ -536,6 +874,36 @@ with quality_tab:
 with data_tab:
     st.dataframe(data.head(20), use_container_width=True, hide_index=True)
     st.caption("Showing the first 20 rows. The source dataset remains unchanged.")
+
+st.markdown('<div id="reviewed-context"></div>', unsafe_allow_html=True)
+st.markdown(
+    '<div class="mg-section"><div><div class="mg-section-kicker">Reviewed context · W04</div>'
+    '<div class="mg-section-title">Evidence behind the boundaries</div></div>'
+    '<div class="mg-section-copy">These reviewed sources explain why MedGuard reports limits. '
+    'They are context for human review, not retrieved advice or compliance clearance.</div></div>',
+    unsafe_allow_html=True,
+)
+source_columns = st.columns(len(REVIEWED_SOURCES))
+for source_column, source_item in zip(source_columns, REVIEWED_SOURCES):
+    with source_column:
+        st.markdown(
+            '<article class="mg-source-card">'
+            f'<div class="mg-source-label">{escape(source_item["label"])} · '
+            f'{escape(source_item["id"])}</div>'
+            f'<div class="mg-source-title">{escape(source_item["title"])}</div>'
+            f'<div class="mg-source-publisher">{escape(source_item["publisher"])}</div>'
+            f'<div class="mg-source-summary">{escape(source_item["summary"])}</div>'
+            f'<a class="mg-source-link" href="{escape(source_item["url"])}" '
+            'target="_blank" rel="noreferrer">Open reviewed source ↗</a>'
+            '</article>',
+            unsafe_allow_html=True,
+        )
+st.caption(
+    "Source inventory reviewed October 24, 2026. Retrieval and embeddings remain disabled until "
+    "they pass an end-to-end test."
+)
+
+st.markdown('<div id="preview-changes"></div>', unsafe_allow_html=True)
 st.markdown(
     '<div class="mg-section"><div><div class="mg-section-kicker">Controlled next step</div>'
     '<div class="mg-section-title">Preview supported changes</div></div>'
@@ -764,11 +1132,21 @@ if preview_result and preview_current:
         else:
             copy_col.caption("Accept the preview to enable the separate output download.")
 
+render_change_map(
+    data,
+    source_fingerprint=report["dataset"]["fingerprint"],
+    preview_result=preview_result if preview_current else None,
+    preview_frame=preview_frame if preview_current else None,
+    column_roles=column_roles,
+    accepted=accepted,
+)
+
 export_report = dict(report)
 if preview_result and preview_current:
     export_report["change_preview"] = dict(preview_result)
     export_report["change_preview"]["accepted_for_export"] = accepted
 
+st.markdown('<div id="optional-explanation"></div>', unsafe_allow_html=True)
 st.markdown(
     '<div class="mg-section"><div><div class="mg-section-kicker">Optional · explicit request</div>'
     '<div class="mg-section-title">Explain the aggregate evidence</div></div>'
@@ -778,9 +1156,10 @@ st.markdown(
     unsafe_allow_html=True,
 )
 st.markdown(
-    '<div class="mg-warning"><strong>Source-grounded RAG is disabled.</strong> The reviewed W04 '
-    'knowledge-source inventory is not present on main. Explanations are optional, unverified, '
-    'and never replace the measured audit evidence.</div>',
+    '<div class="mg-warning"><strong>Reviewed sources are available; retrieval is not.</strong> '
+    'W04 verified the source inventory shown above, but embedding and retrieval have not passed '
+    'an end-to-end test. The optional explanation uses aggregate audit evidence only and remains '
+    'unverified.</div>',
     unsafe_allow_html=True,
 )
 explanation_col, model_col = st.columns([2, 1])
@@ -858,6 +1237,7 @@ if explanation_result and explanation_current:
             st.write(f"- {limitation}")
     export_report["optional_explanation"] = explanation_result
 
+st.markdown('<div id="export-evidence"></div>', unsafe_allow_html=True)
 st.markdown(
     '<div class="mg-export"><div class="mg-section-kicker">Portable evidence</div>'
     '<div class="mg-title">Export the audit record</div>'

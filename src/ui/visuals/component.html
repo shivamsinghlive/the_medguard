@@ -1,0 +1,548 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root {
+  --paper: #F4F6FB; --card: #FFFFFF; --ink: #1A2340; --ink2: #4E5874; --ink3: #8790A8; --line: #DDE2EE;
+  --a: #2F5BFF; --a-soft: #E6ECFF; --a-text: #1E3AB8; --b: #13B5A6; --b-soft: #DDF6F3;
+  --g2: #8FA4FF; --g3: #4E5874;
+  --review: #FF8A3D; --review-soft: #FFEBDD; --review-text: #8A3A05; --review-cell: #FFC9A3;
+  --neutral: #1A2340; --neutral-soft: #E7EAF3; --scan: #8FA4FF; --scan-dim: #C9D3F5;
+  --dim: #DDE2EE; --dim2: #E8ECF4; --glow: rgba(47, 91, 255, .22); --tip: #0B1020;
+  --display: "Bricolage Grotesque", "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --body: "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+body.dark {
+  --paper: #0F1424; --card: #171E33; --ink: #EEF1FA; --ink2: #AEB6CC; --ink3: #7E89A6; --line: #29324B;
+  --a: #6F8DFF; --a-soft: #24315A; --a-text: #C9D4FF; --b: #2FD1C1; --b-soft: #173B3D;
+  --g2: #A9B8FF; --g3: #AEB6CC;
+  --review: #FF9D5C; --review-soft: #4A2C20; --review-text: #FFC9A3; --review-cell: #9A5A34;
+  --neutral: #C9D2EA; --neutral-soft: #27304A; --scan: #6F8DFF; --scan-dim: #34427A;
+  --dim: #27304A; --dim2: #1E2640; --glow: rgba(111, 141, 255, .28); --tip: #05070D;
+}
+@property --p { syntax: "<number>"; inherits: false; initial-value: 0; }
+* { box-sizing: border-box; }
+html, body { margin: 0; background: transparent; }
+body { padding: 4px 4px 16px; color: var(--ink); font-family: var(--body); font-size: 14px;
+  font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased; }
+button { font: inherit; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.card { position: relative; background: var(--card); border: 1px solid var(--line); border-radius: 20px;
+  padding: 18px; box-shadow: 0 10px 28px rgba(26, 35, 64, .07); }
+.eyebrow { font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--ink3); }
+.title { font-family: var(--display); font-weight: 700; font-size: 20px; letter-spacing: -.02em; color: var(--ink); margin: 3px 0 0; }
+.muted { color: var(--ink2); }
+.caption { font-size: 12px; color: var(--ink2); line-height: 1.5; margin-top: 10px; }
+.big { font-family: var(--display); font-weight: 700; font-size: 34px; letter-spacing: -.03em; line-height: 1.05; color: var(--ink); }
+.chip { display: inline-flex; align-items: center; gap: 5px; border-radius: 999px; padding: 3px 9px;
+  font-size: 11px; font-weight: 700; white-space: nowrap; background: var(--neutral-soft); color: var(--ink2); border: 1px solid transparent; }
+.chip.s-review_needed { background: var(--review-soft); color: var(--review-text); }
+.chip.s-review_needed::before { content: "!"; font-weight: 800; }
+.chip.s-descriptive_only { background: var(--neutral-soft); color: var(--ink2); }
+.chip.s-insufficient_evidence { background: transparent; border-color: var(--ink3); border-style: dashed; color: var(--ink2); }
+.chip.s-no_patterns_found { background: var(--neutral-soft); color: var(--ink); }
+:focus-visible { outline: 3px solid var(--a); outline-offset: 2px; }
+.swatch { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--ink2); margin-top: 10px; }
+
+/* status strip and count tiles */
+.strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.tile { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 14px 16px; min-width: 0;
+  box-shadow: 0 8px 22px rgba(26, 35, 64, .05); display: flex; flex-direction: column; gap: 6px; }
+.tile.review { border-left: 4px solid var(--review); }
+.tile .unit { font-size: 12px; color: var(--ink2); line-height: 1.35; }
+.tile .note { font-size: 11px; color: var(--ink3); margin-top: auto; }
+.tile .big { font-size: 28px; }
+
+/* mosaic */
+.mosaic-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 14px; flex-wrap: wrap; margin-bottom: 14px; }
+.lenses { display: flex; flex-wrap: wrap; gap: 8px; }
+.lens { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--line); background: var(--card);
+  color: var(--ink); border-radius: 999px; padding: 6px 8px 6px 13px; font-weight: 600; font-size: 13px; cursor: pointer; }
+.lens[aria-pressed="true"] { border-color: var(--a); box-shadow: 0 0 0 3px var(--a-soft); }
+.mosaic-body { display: grid; grid-template-columns: minmax(0, 1fr) 230px; gap: 16px; }
+.canvas-wrap { position: relative; border: 1px solid var(--line); border-radius: 16px; padding: 12px; background: var(--card); }
+canvas { display: block; width: 100%; height: 300px; touch-action: manipulation; border-radius: 6px; }
+.readout { border: 1px solid var(--line); border-radius: 16px; padding: 16px; background: var(--paper);
+  display: flex; flex-direction: column; gap: 8px; }
+.readout .line { font-size: 13px; line-height: 1.5; color: var(--ink2); }
+.readout .line.strong { color: var(--ink); font-weight: 600; }
+.readout ul { margin: 0; padding: 0; list-style: none; font-size: 12px; color: var(--ink2); display: grid; gap: 4px; }
+.tooltip { position: absolute; z-index: 5; pointer-events: none; display: none; min-width: 150px; background: var(--tip); color: #fff;
+  border-radius: 10px; padding: 8px 10px; font-size: 12px; line-height: 1.5; box-shadow: 0 10px 24px rgba(0, 0, 0, .25); }
+
+/* cohort */
+.cohort { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(220px, .9fr); gap: 18px; align-items: start; }
+.cohort-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; flex-wrap: wrap; margin-bottom: 8px; }
+svg text { font-family: var(--body); }
+.ring-g { transition: transform .7s cubic-bezier(.2, .8, .2, 1), opacity .5s ease; }
+.waffle { display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; max-width: 260px; margin: 6px auto 0; }
+.waffle i { display: block; aspect-ratio: 1; border-radius: 3px; background: var(--dim); }
+.waffle i.g0 { background: var(--a); } .waffle i.g1 { background: var(--b); }
+.waffle i.g2 { background: var(--g2); } .waffle i.g3 { background: var(--g3); }
+.waffle i.missing { background: repeating-linear-gradient(45deg, var(--dim), var(--dim) 3px, var(--dim2) 3px, var(--dim2) 6px); }
+.waffle i.ref { box-shadow: 0 0 0 2px var(--card), 0 0 0 3.5px var(--neutral); }
+
+/* identifier coverage */
+.coverage { display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 22px; align-items: center; }
+.ring { --p: 0; position: relative; width: 156px; aspect-ratio: 1; border-radius: 50%; margin: auto;
+  background: conic-gradient(var(--scan) calc(var(--p) * 1%), var(--neutral-soft) 0); transition: --p 1.2s ease-out; display: grid; place-items: center; }
+.ring::after { content: ""; position: absolute; inset: 16px; border-radius: 50%; background: var(--card); }
+.ring-text { position: relative; z-index: 1; text-align: center; }
+.scan-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0; }
+.scan-chip { font-size: 11px; padding: 4px 8px; border-radius: 999px; background: var(--dim2); color: var(--ink3); transition: background .2s, color .2s; }
+.scan-chip.done { background: var(--a-soft); color: var(--a-text); }
+.callout { border-left: 3px solid var(--neutral); background: var(--neutral-soft); border-radius: 0 10px 10px 0;
+  padding: 10px 12px; font-size: 13px; line-height: 1.5; color: var(--ink); }
+
+/* changes */
+.ledger { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
+.ledger > div { border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; }
+.ledger .big { font-size: 24px; margin-top: 2px; }
+.ledger .review { border-left: 4px solid var(--review); }
+.change-body { display: grid; grid-template-columns: minmax(0, 1fr) 240px; gap: 16px; }
+.mini { display: grid; grid-template-columns: repeat(56, 1fr); gap: 2px; border: 1px solid var(--line); border-radius: 14px; padding: 10px; }
+.mini i { display: block; aspect-ratio: 1; border-radius: 1px; background: var(--scan-dim);
+  transition: background .45s ease, transform .45s ease, box-shadow .45s ease; }
+.mini i.remove { background: var(--review); }
+.mini i.gone { background: transparent; box-shadow: inset 0 0 0 1.5px var(--review); transform: translateY(2px) scale(.75); }
+.prints { display: grid; gap: 10px; align-content: start; }
+.print { position: relative; border: 1px solid var(--line); border-radius: 14px; padding: 12px; display: grid; grid-template-columns: 54px 1fr; gap: 12px; align-items: center; overflow: hidden; }
+.identicon { display: grid; grid-template-columns: repeat(5, 1fr); gap: 2px; width: 54px; }
+.identicon i { aspect-ratio: 1; border-radius: 2px; background: var(--dim2); }
+.identicon.src i.on { background: var(--neutral); } .identicon.copy i.on { background: var(--a); }
+.hash { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; color: var(--ink3); }
+.stamp { display: inline-block; margin-top: 6px; padding: 3px 8px; border: 2px solid var(--a); color: var(--a-text); border-radius: 6px;
+  font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; transform: rotate(-3deg); animation: stamp .45s cubic-bezier(.2, 1.4, .4, 1) both; }
+.roles { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 14px; font-size: 12px; color: var(--ink2); }
+.empty { border: 1px dashed var(--line); border-radius: 12px; padding: 10px 12px; font-size: 13px; color: var(--ink2); margin-bottom: 12px; }
+@keyframes stamp { from { opacity: 0; transform: scale(1.6) rotate(-3deg); } to { opacity: 1; transform: scale(1) rotate(-3deg); } }
+
+@media (max-width: 720px) {
+  .strip, .ledger { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .mosaic-body, .cohort, .coverage, .change-body { grid-template-columns: 1fr; }
+  canvas { height: 220px; }
+  .mini { grid-template-columns: repeat(32, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+</style>
+</head>
+<body>
+<main id="root"></main>
+<div class="tooltip" id="tip"></div>
+<script>
+const d = __MEDGUARD_PAYLOAD__;
+const root = document.getElementById("root");
+const tip = document.getElementById("tip");
+const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const STATUS = {
+  review_needed: "review needed", descriptive_only: "descriptive only",
+  insufficient_evidence: "insufficient evidence", no_patterns_found: "no patterns found",
+};
+const esc = (value) => String(value).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+const fmt = (n) => Number(n).toLocaleString("en-US");
+const chip = (s) => `<span class="chip s-${esc(s)}">${esc(STATUS[s] || String(s).replaceAll("_", " "))}</span>`;
+const css = (name) => getComputedStyle(document.body).getPropertyValue(name).trim();
+const groupVar = (i) => ["--a", "--b", "--g2", "--g3"][i % 4];
+
+/* Theme follows the host Streamlit theme (its text color), so the frame never
+   disagrees with the page around it. */
+function hostIsDark() {
+  try {
+    const app = parent.document.querySelector(".stApp");
+    if (app) {
+      const [r, g, b] = getComputedStyle(app).color.match(/[\d.]+/g).map(Number);
+      return (r * 299 + g * 587 + b * 114) / 1000 > 150;
+    }
+  } catch (e) { /* cross-origin host: fall back to the OS preference */ }
+  return matchMedia("(prefers-color-scheme: dark)").matches;
+}
+function syncTheme() {
+  const dark = hostIsDark();
+  if (document.body.classList.contains("dark") !== dark) {
+    document.body.classList.toggle("dark", dark);
+    dispatchEvent(new Event("mgtheme"));
+  }
+}
+syncTheme();
+try { new MutationObserver(syncTheme).observe(parent.document.head, { childList: true }); } catch (e) { /* ignore */ }
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", syncTheme);
+
+/* Size the frame to its content so stacked phone layouts are never clipped. */
+function fit() {
+  try {
+    const frame = window.frameElement;
+    if (!frame) return;
+    const height = Math.ceil(document.documentElement.getBoundingClientRect().height);
+    if (Math.abs(frame.getBoundingClientRect().height - height) > 1) frame.style.height = height + "px";
+  } catch (e) { /* fixed height from Python remains */ }
+}
+new ResizeObserver(fit).observe(document.body);
+
+function countUp(el, target) {
+  if (reduced || !target) { el.textContent = fmt(target); return; }
+  const start = performance.now();
+  const tick = (now) => {
+    const p = Math.min(1, (now - start) / 650);
+    el.textContent = fmt(Math.round(target * (1 - Math.pow(1 - p, 3))));
+    if (p < 1) requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
+
+function identicon(hash, kind) {
+  const hex = String(hash || "").replace(/[^0-9a-f]/gi, "");
+  let cells = "";
+  for (let r = 0; r < 5; r++) {
+    const bits = [0, 1, 2].map((c) => parseInt(hex[r * 3 + c] || "0", 16) % 2);
+    [bits[0], bits[1], bits[2], bits[1], bits[0]].forEach((on) => { cells += `<i class="${on ? "on" : ""}"></i>`; });
+  }
+  return `<div class="identicon ${kind}" role="img" aria-label="Fingerprint pattern ${esc(hex.slice(0, 8))}">${cells}</div>`;
+}
+
+function status() {
+  root.innerHTML = `<section class="strip" aria-label="Measured audit status">${d.tiles.map((t) => `
+    <article class="tile${t.status === "review_needed" ? " review" : ""}">
+      <div class="eyebrow">${esc(t.label)}</div>
+      <div class="big" data-count="${Number(t.value)}">${fmt(t.value)}</div>
+      <div class="unit">${esc(t.unit)}</div>
+      <div>${chip(t.status)}</div>
+      <div class="note">${esc(t.note)}</div>
+    </article>`).join("")}</section>`;
+  root.querySelectorAll("[data-count]").forEach((el) => countUp(el, Number(el.dataset.count)));
+}
+
+function tiles() {
+  root.innerHTML = `<section class="strip" aria-label="Data quality counts">${d.tiles.map((t) => `
+    <article class="tile${t.review ? " review" : ""}">
+      <div class="eyebrow">${esc(t.label)}</div>
+      <div class="big" data-count="${Number(t.value)}">${fmt(t.value)}</div>
+      ${t.review ? `<div>${chip("review_needed")}</div>` : ""}
+    </article>`).join("")}</section>`;
+  root.querySelectorAll("[data-count]").forEach((el) => countUp(el, Number(el.dataset.count)));
+}
+
+function mosaic() {
+  const lensStatus = {
+    cohort: d.cohortStatus,
+    missing: d.missingCells ? "review_needed" : "descriptive_only",
+    duplicate: d.duplicateRows ? "review_needed" : "descriptive_only",
+    identifier: d.screeningStatus,
+  };
+  const lensNames = { cohort: "Cohort", missing: "Missing values", duplicate: "Duplicates", identifier: "Identifier scan" };
+  const sampleNote = d.sampled
+    ? `Even sample of ${fmt(d.sampleCount)} of ${fmt(d.rowCount)} rows; each square is one sampled row.`
+    : `All ${fmt(d.rowCount)} rows shown; each square is one row.`;
+  root.innerHTML = `
+    <section class="card">
+      <div class="mosaic-head">
+        <div><div class="eyebrow">Dataset mosaic</div><div class="title">One square per ${d.sampled ? "sampled " : ""}row</div></div>
+        <div class="lenses" role="group" aria-label="Choose a lens">${Object.keys(lensNames).map((k) => `
+          <button class="lens" type="button" data-lens="${k}" aria-pressed="false">${lensNames[k]} ${chip(lensStatus[k])}</button>`).join("")}
+        </div>
+      </div>
+      <div class="mosaic-body">
+        <div class="canvas-wrap">
+          <canvas tabindex="0" role="img" aria-describedby="mosaic-summary"></canvas>
+          <div class="legend" id="legend"></div>
+        </div>
+        <aside class="readout" aria-live="polite">
+          <div class="eyebrow" id="lens-name"></div>
+          <div class="big" id="lens-big"></div>
+          <div class="line strong" id="lens-unit"></div>
+          <div class="line" id="lens-copy"></div>
+          <ul id="lens-list"></ul>
+        </aside>
+      </div>
+      <p class="caption">${sampleNote} Hover, tap, or use the arrow keys on the grid to inspect a row. Only aggregate row flags reach this view; the source is unchanged.</p>
+      <p class="sr-only" id="mosaic-summary"></p>
+    </section>`;
+  const canvas = root.querySelector("canvas");
+  const ctx = canvas.getContext("2d");
+  const wrap = root.querySelector(".canvas-wrap");
+  const buttons = [...root.querySelectorAll(".lens")];
+  let lens = d.initialLens;
+  let cells = [], cols = 1, current = [], active = -1, frameId = 0;
+
+  function colorFor(r, which) {
+    if (which === "cohort") return r.group < 0 ? css("--dim") : css(groupVar(r.group));
+    if (which === "missing") {
+      if (d.focusActive) return r.focus ? css("--review") : css("--dim2");
+      return r.missing >= 2 ? css("--review") : r.missing === 1 ? css("--review-cell") : css("--dim2");
+    }
+    if (which === "duplicate") return r.duplicate ? css("--review") : css("--dim2");
+    return r.row <= d.rowsScanned ? css("--scan") : css("--scan-dim");
+  }
+  function layout() {
+    const w = canvas.clientWidth, h = canvas.clientHeight, n = d.rows.length || 1;
+    let best = { size: 0, cols: 1 };
+    const guess = Math.max(1, Math.round(Math.sqrt((n * w) / Math.max(h, 1))));
+    for (let c = Math.max(1, guess - 6); c <= guess + 6; c++) {
+      const rows = Math.ceil(n / c), gap = 2;
+      const size = Math.min((w - gap * (c - 1)) / c, (h - gap * (rows - 1)) / rows);
+      if (size > best.size) best = { size, cols: c };
+    }
+    cols = best.cols;
+    const size = Math.max(1.5, best.size), gap = size > 5 ? 2 : 1;
+    const rowsN = Math.ceil(n / cols);
+    const used = cols * size + (cols - 1) * gap;
+    const offset = Math.max(0, (w - used) / 2);
+    cells = d.rows.map((r, i) => ({ r, x: offset + (i % cols) * (size + gap), y: Math.floor(i / cols) * (size + gap), size }));
+    const ratio = devicePixelRatio || 1;
+    canvas.width = Math.round(w * ratio);
+    canvas.height = Math.round(Math.max(h, rowsN * (size + gap)) * ratio);
+    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+  }
+  function draw(colors, sweepX = null) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    cells.forEach((c, i) => {
+      ctx.fillStyle = sweepX === null || c.x + c.size / 2 <= sweepX ? colors[i] : current[i];
+      ctx.fillRect(c.x, c.y, c.size, c.size);
+    });
+    if (sweepX !== null) {
+      const band = 70, g = ctx.createLinearGradient(sweepX - band, 0, sweepX + 8, 0);
+      g.addColorStop(0, "rgba(0,0,0,0)"); g.addColorStop(.85, css("--glow")); g.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = g;
+      ctx.fillRect(sweepX - band, 0, band + 8, canvas.clientHeight);
+    }
+    if (active >= 0 && cells[active]) {
+      const c = cells[active];
+      ctx.strokeStyle = css("--ink"); ctx.lineWidth = 2;
+      ctx.strokeRect(c.x - 1.5, c.y - 1.5, c.size + 3, c.size + 3);
+    }
+  }
+  function paint(animate) {
+    cancelAnimationFrame(frameId);
+    layout();
+    const next = cells.map((c) => colorFor(c.r, lens));
+    if (!animate || reduced || current.length !== next.length) { current = next; draw(next); return; }
+    const start = performance.now(), width = canvas.clientWidth + 80;
+    const step = (now) => {
+      const p = Math.min(1, (now - start) / 700);
+      draw(next, p * width);
+      if (p < 1) frameId = requestAnimationFrame(step);
+      else { current = next; draw(next); }
+    };
+    frameId = requestAnimationFrame(step);
+  }
+  function readout() {
+    const set = (id, html) => { root.querySelector("#" + id).innerHTML = html; };
+    set("lens-name", lensNames[lens]);
+    let big = "", unit = "", copy = "", list = "", legend = "", summary = "";
+    if (lens === "cohort") {
+      big = d.labels.length ? fmt(d.observedCount) : "—";
+      unit = d.labels.length ? "rows with a recorded label" : "No demographic column selected";
+      copy = d.labels.length ? "Colored by group label exactly as recorded. Unlabelled rows are dimmed." : "Choose a demographic column to map recorded labels.";
+      list = d.labels.map((l, i) => `<li><span class="swatch" style="background:var(${groupVar(i)})"></span>${esc(l)} · ${fmt(d.labelCounts[i])}</li>`).join("");
+      legend = d.labels.map((l, i) => `<span><span class="swatch" style="background:var(${groupVar(i)})"></span>${esc(l)}</span>`).join("") + `<span><span class="swatch" style="background:var(--dim)"></span>not recorded</span>`;
+      summary = `Cohort lens: ${d.labels.map((l, i) => `${l}, ${d.labelCounts[i]} rows`).join("; ") || "no demographic column selected"}.`;
+    } else if (lens === "missing") {
+      big = fmt(d.focusActive ? d.focusMissing : d.missingCells);
+      unit = d.focusActive ? "missing cells in the focus column" : `missing cells across ${fmt(d.missingColumns)} columns`;
+      copy = d.focusActive ? "Rows missing a value in the selected focus column are highlighted. Other rows are dimmed." : "Lighter squares have one gap; darker squares have two or more.";
+      legend = d.focusActive
+        ? `<span><span class="swatch" style="background:var(--review)"></span>missing in focus column</span><span><span class="swatch" style="background:var(--dim2)"></span>other rows</span>`
+        : `<span><span class="swatch" style="background:var(--review-cell)"></span>1 missing cell</span><span><span class="swatch" style="background:var(--review)"></span>2 or more</span><span><span class="swatch" style="background:var(--dim2)"></span>complete</span>`;
+      summary = `Missing values lens: ${big} ${unit}.`;
+    } else if (lens === "duplicate") {
+      big = fmt(d.duplicateRows);
+      unit = "rows in exact-duplicate sets";
+      copy = "Every copy in a duplicate set is counted, including the one a cleanup would keep.";
+      legend = `<span><span class="swatch" style="background:var(--review)"></span>in a duplicate set</span><span><span class="swatch" style="background:var(--dim2)"></span>no exact copy</span>`;
+      summary = `Duplicates lens: ${big} rows in exact-duplicate sets.`;
+    } else {
+      big = fmt(d.screeningMatches);
+      unit = "matched identifier signals";
+      copy = "This is screening, not clearance. No matched patterns does not establish HIPAA de-identification.";
+      legend = `<span><span class="swatch" style="background:var(--scan)"></span>values checked</span>` + (d.rowsScanned < d.rowCount ? `<span><span class="swatch" style="background:var(--scan-dim)"></span>names only</span>` : "");
+      summary = `Identifier scan lens: ${big} matched signals. ${copy}`;
+    }
+    set("lens-big", big); set("lens-unit", esc(unit)); set("lens-copy", esc(copy)); set("lens-list", list);
+    root.querySelector("#legend").innerHTML = legend;
+    root.querySelector("#mosaic-summary").textContent = summary;
+    canvas.setAttribute("aria-label", `Dataset mosaic, ${lensNames[lens]} lens. ${summary}`);
+    buttons.forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.lens === lens)));
+  }
+  function showTip(index, clientX, clientY) {
+    active = index;
+    draw(current);
+    if (index < 0) { tip.style.display = "none"; return; }
+    const r = cells[index].r;
+    const group = r.group < 0 ? "not recorded" : d.labels[r.group];
+    tip.innerHTML = `<strong>Row ${fmt(r.row)}</strong><br>Group: ${esc(group)}<br>Missing columns: ${r.missing}<br>Exact duplicate: ${r.duplicate ? "yes" : "no"}`;
+    tip.style.display = "block";
+    const box = document.body.getBoundingClientRect();
+    tip.style.left = Math.max(4, Math.min(box.width - tip.offsetWidth - 4, clientX + 12)) + "px";
+    tip.style.top = Math.max(4, clientY - tip.offsetHeight - 10 + scrollY) + "px";
+  }
+  function hit(event) {
+    const rect = canvas.getBoundingClientRect(), x = event.clientX - rect.left, y = event.clientY - rect.top;
+    const index = cells.findIndex((c) => x >= c.x && x < c.x + c.size + 2 && y >= c.y && y < c.y + c.size + 2);
+    showTip(index, event.clientX, event.clientY);
+  }
+  canvas.addEventListener("pointermove", hit);
+  canvas.addEventListener("pointerdown", hit);
+  canvas.addEventListener("pointerleave", (e) => { if (e.pointerType === "mouse") showTip(-1); });
+  canvas.addEventListener("blur", () => showTip(-1));
+  canvas.addEventListener("keydown", (e) => {
+    const moves = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: cols, ArrowUp: -cols };
+    if (e.key === "Escape") { showTip(-1); return; }
+    if (!(e.key in moves) && e.key !== "Home" && e.key !== "End") return;
+    e.preventDefault();
+    let next = active < 0 ? 0 : active + (moves[e.key] || 0);
+    if (e.key === "Home") next = 0;
+    if (e.key === "End") next = cells.length - 1;
+    next = Math.max(0, Math.min(cells.length - 1, next));
+    const rect = canvas.getBoundingClientRect(), c = cells[next];
+    showTip(next, rect.left + c.x + c.size, rect.top + c.y);
+  });
+  buttons.forEach((b) => b.addEventListener("click", () => { lens = b.dataset.lens; readout(); paint(true); }));
+  new ResizeObserver(() => paint(false)).observe(canvas);
+  addEventListener("mgtheme", () => paint(false));
+  readout();
+  paint(false);
+}
+
+function cohort() {
+  const groups = d.groups;
+  const W = 600, left = 170, right = 520, rowH = 58, top = 18;
+  const H = top + groups.length * rowH + 42;
+  const x = (pct) => left + (right - left) * (Math.max(0, Math.min(100, pct || 0)) / 100);
+  const short = (s) => (s.length > 24 ? s.slice(0, 23) + "…" : s);
+  const rows = groups.map((g, i) => {
+    const y = top + i * rowH + rowH / 2, ox = x(g.observed), hasRef = g.reference !== null;
+    const rx = hasRef ? x(g.reference) : ox;
+    return `
+      <g>
+        <title>${esc(g.label)}: ${g.observed === null ? "no observed values" : g.observed + "% observed"}${hasRef ? `, reference ${g.reference}%, gap ${g.gapText}` : ""}</title>
+        <text x="0" y="${y + 4}" font-size="13" fill="var(--ink)">${esc(short(g.label))}</text>
+        <line x1="${left}" x2="${right}" y1="${y}" y2="${y}" stroke="var(--dim2)" stroke-width="2" />
+        ${hasRef ? `<line class="gap-line" x1="${Math.min(ox, rx)}" x2="${Math.max(ox, rx)}" y1="${y}" y2="${y}" stroke="var(--line)" stroke-width="6" stroke-linecap="round" />` : ""}
+        <circle cx="${ox}" cy="${y}" r="9" fill="var(${groupVar(i)})" />
+        <text x="${ox}" y="${y - 15}" font-size="12" text-anchor="middle" fill="var(--ink2)">${g.observed === null ? "n/a" : g.observed + "%"}</text>
+        ${hasRef ? `
+        <g class="ring-g" data-from="${ox - rx}" style="transform: translateX(0px); opacity: 1">
+          <circle cx="${rx}" cy="${y}" r="9" fill="var(--card)" stroke="var(--neutral)" stroke-width="3" />
+          <text x="${rx}" y="${y + 25}" font-size="11" text-anchor="middle" fill="var(--ink3)">ref ${g.reference}%</text>
+        </g>
+        <text x="${Math.max(ox, rx) + 18}" y="${y + 4}" font-size="13" font-weight="700" fill="var(--ink)">${esc(g.gapText)}</text>` : ""}
+      </g>`;
+  }).join("");
+  const ticks = [0, 25, 50, 75, 100].map((t) => `
+    <line x1="${x(t)}" x2="${x(t)}" y1="${H - 34}" y2="${H - 29}" stroke="var(--ink3)" />
+    <text x="${x(t)}" y="${H - 14}" font-size="11" text-anchor="middle" fill="var(--ink3)">${t}%</text>`).join("");
+  const svgLabel = `Observed share by recorded group for ${d.column}: ` + groups.map((g) => `${g.label} ${g.observed}%${g.reference !== null ? `, reference ${g.reference}%, gap ${g.gapText}` : ""}`).join("; ");
+  const waffle = d.cells.map((c, i) => {
+    const cls = c.group < 0 ? "missing" : "g" + (c.group % 4);
+    const name = c.group < 0 ? "missing value" : groups[c.group].label;
+    return `<i class="${cls}${c.reference ? " ref" : ""}" title="${esc(name)}"></i>`;
+  }).join("");
+  const total = d.observedCount + d.missingCount;
+  const waffleLabel = `100-square view of ${fmt(total)} rows: ` + groups.map((g) => `${g.label} ${g.squares} squares`).join(", ") + `, missing ${d.missingSquares} squares.`;
+  root.innerHTML = `
+    <section class="card">
+      <div class="cohort-head">
+        <div><div class="eyebrow">Cohort evidence</div><div class="title">${esc(d.column)}</div></div>
+        ${chip(d.status)}
+      </div>
+      <div class="cohort">
+        <div>
+          <svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="${esc(svgLabel)}">${rows}${ticks}</svg>
+          <div class="legend">
+            <span><svg width="12" height="12" aria-hidden="true"><circle cx="6" cy="6" r="5" fill="var(--a)" /></svg> observed share</span>
+            ${d.hasReference ? `<span><svg width="12" height="12" aria-hidden="true"><circle cx="6" cy="6" r="4.5" fill="none" stroke="var(--neutral)" stroke-width="2" /></svg> supplied reference</span><span>gaps in percentage points, observed minus reference</span>` : `<span>No reference supplied; shares are descriptive only.</span>`}
+          </div>
+        </div>
+        <div>
+          <div class="eyebrow">100-square view</div>
+          <div class="waffle" role="img" aria-label="${esc(waffleLabel)}">${waffle}</div>
+          <div class="legend">
+            ${groups.map((g, i) => `<span><span class="swatch" style="background:var(${groupVar(i)})"></span>${esc(g.label)}</span>`).join("")}
+            <span><span class="swatch" style="background:var(--dim)"></span>missing · ${fmt(d.missingCount)}</span>
+          </div>
+        </div>
+      </div>
+      <p class="caption">Denominator: ${fmt(d.observedCount)} non-missing values; ${fmt(d.missingCount)} missing are shown as a separate gray segment, never dropped. One square is about 1% of all ${fmt(total)} rows.${d.referenceSquares ? ` Navy outlines mark the reference share for ${esc(d.referenceLabel)} (${d.referenceSquares} squares).` : ""}</p>
+    </section>`;
+  if (!reduced) {
+    root.querySelectorAll(".ring-g").forEach((g) => {
+      g.style.transition = "none";
+      g.style.transform = `translateX(${g.dataset.from}px)`;
+      g.style.opacity = "0";
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        g.style.transition = "";
+        g.style.transform = "translateX(0px)";
+        g.style.opacity = "1";
+      }));
+    });
+  }
+}
+
+function identifier() {
+  const chips = Math.min(d.columnCount, 30);
+  root.innerHTML = `
+    <section class="card coverage">
+      <div class="ring" role="img" aria-label="${d.percent}% of cells value-checked">
+        <div class="ring-text"><div class="big">${d.percent}%</div><div class="muted" style="font-size:12px">cells scanned</div></div>
+      </div>
+      <div>
+        <div class="eyebrow">Identifier screening coverage</div>
+        <div class="title">${fmt(d.columnCount)} of ${fmt(d.columnCount)} columns scanned · ${fmt(d.matches)} matched</div>
+        <p class="caption" style="margin-top:4px">${fmt(d.rowsScanned)} of ${fmt(d.rowCount)} rows value-checked with ${fmt(d.checkCount)} checks. Every column also gets a name check. ${chip(d.status)}</p>
+        <div class="scan-chips" aria-hidden="true">${Array.from({ length: chips }, (_, i) => `<span class="scan-chip">column ${i + 1}</span>`).join("")}${d.columnCount > chips ? `<span class="scan-chip done">+${fmt(d.columnCount - chips)} more scanned</span>` : ""}</div>
+        <div class="callout"><strong>This is screening, not clearance.</strong> No matched patterns does not establish HIPAA de-identification.</div>
+      </div>
+    </section>`;
+  const ring = root.querySelector(".ring");
+  requestAnimationFrame(() => requestAnimationFrame(() => ring.style.setProperty("--p", d.percent)));
+  root.querySelectorAll(".scan-chip:not(.done)").forEach((el, i) => {
+    const done = () => { el.classList.add("done"); el.textContent = el.textContent + " · scanned"; };
+    reduced ? done() : setTimeout(done, 150 + i * 55);
+  });
+}
+
+function changes() {
+  const removed = new Set(d.removed);
+  const grid = d.rowNumbers.map((n) => `<i class="${removed.has(n) ? "remove" : ""}"></i>`).join("");
+  const roles = ["demographic", "identifier", "outcome", "prediction"].map((role) =>
+    `<span class="chip">${role}${d.protectedRoles.includes(role) ? "" : " · none assigned"}</span>`).join("");
+  root.innerHTML = `
+    <section class="card">
+      ${d.previewReady ? "" : `<div class="empty">No preview yet. Choose supported changes and generate a preview to see which rows the copy would drop.</div>`}
+      <div class="ledger">
+        <div><div class="eyebrow">Source rows · locked</div><div class="big">${fmt(d.sourceRows)}</div></div>
+        <div class="${d.removedRows ? "review" : ""}"><div class="eyebrow">Rows removed</div><div class="big">${fmt(d.removedRows)}</div></div>
+        <div><div class="eyebrow">Rows in copy</div><div class="big">${fmt(d.copyRows)}</div></div>
+        <div><div class="eyebrow">Cells filled</div><div class="big">${fmt(d.cellsFilled)}</div></div>
+      </div>
+      <div class="change-body">
+        <div>
+          <div class="eyebrow">Row map${d.sampled ? ` · even sample of ${fmt(d.sampleCount)}` : ""}</div>
+          <div class="mini" role="img" aria-label="${fmt(d.removedRows)} of ${fmt(d.sourceRows)} rows would be left out of the reviewed copy">${grid}</div>
+          <div class="legend"><span><span class="swatch" style="background:transparent;box-shadow:inset 0 0 0 1.5px var(--review)"></span>left out of the copy</span><span><span class="swatch" style="background:var(--scan-dim)"></span>kept in the copy</span></div>
+        </div>
+        <div class="prints">
+          <div class="print">${identicon(d.sourceFingerprint, "src")}<div><strong>Source dataset</strong><div class="muted" style="font-size:12px">fingerprint unchanged</div><div class="hash">${esc(String(d.sourceFingerprint).slice(0, 12))}</div></div></div>
+          ${d.outputFingerprint ? `<div class="print">${identicon(d.outputFingerprint, "copy")}<div><strong>Reviewed copy</strong><div class="muted" style="font-size:12px">separate fingerprint</div><div class="hash">${esc(String(d.outputFingerprint).slice(0, 12))}</div>${d.accepted ? `<span class="stamp">ready to export</span>` : ""}</div></div>` : ""}
+        </div>
+      </div>
+      <div class="roles"><strong style="color:var(--ink)">Never changed:</strong> ${roles}</div>
+    </section>`;
+  if (d.previewReady && !d.accepted && !reduced) {
+    const doomed = [...root.querySelectorAll(".mini i.remove")];
+    const step = Math.min(40, 1400 / Math.max(doomed.length, 1));
+    doomed.forEach((el, i) => setTimeout(() => el.classList.add("gone"), 500 + i * step));
+  } else if (d.previewReady) {
+    root.querySelectorAll(".mini i.remove").forEach((el) => el.classList.add("gone"));
+  }
+}
+
+({ status, tiles, mosaic, cohort, identifier, changes }[d.kind] || (() => { root.textContent = "Visual unavailable."; }))();
+fit();
+</script>
+</body>
+</html>

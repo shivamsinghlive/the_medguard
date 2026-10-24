@@ -24,7 +24,7 @@ def test_guided_demo_uses_live_descriptive_service(monkeypatch):
     assert not app.exception
     assert app.radio[0].value == "Guided demo"
     assert not app.text_area
-    assert [m.value for m in app.metric if m.label == "Records"] == ["1,200"]
+    assert [m.value for m in app.metric if m.label == "Records"] == ["1,031"]
     assert [m.value for m in app.metric if m.label == "Attributes assessed"] == ["1"]
     assert [m.value for m in app.metric if m.label == "Representation flags"] == ["0"]
     assert [m.value for m in app.metric if m.label == "Identifier signals"]
@@ -43,8 +43,42 @@ def test_guided_demo_uses_live_descriptive_service(monkeypatch):
     assert "See the evidence before you train" in page_text
     assert "Automatic mitigation remains disabled" in page_text
     assert "screening result, not privacy clearance" in page_text
+    assert "1 signal ready for review" in page_text
+    assert "Observed sex: Male 68.2% · Female 31.8%" in page_text
+    assert "no threshold is applied" in page_text
+    assert "Evidence behind the boundaries" in page_text
+    assert "Good Machine Learning Practice" in page_text
+    assert "45 CFR 164.514(b)" in page_text
+    assert "Multiple imputation: potential and pitfalls" in page_text
+    assert "knowledge-source inventory is not present" not in page_text
+    assert "Reviewed sources are available; retrieval is not" in page_text
     assert "fixed v1 contract fixture" not in page_text
     assert "FAIR" not in page_text
+
+
+def test_guided_demo_exercises_quality_evidence(monkeypatch):
+    app = run_app(monkeypatch)
+
+    assert not app.exception
+    focus = next(widget for widget in app.selectbox if widget.label == "Missing-values focus")
+    assert focus.options == ["All columns", "bmi", "hba1c"]
+    focus.set_value("hba1c").run(timeout=30)
+    assert not app.exception
+    assert any("Focus column: hba1c" in caption.value for caption in app.caption)
+
+
+def test_reviewed_context_links_match_w04_inventory(monkeypatch):
+    app = run_app(monkeypatch)
+    page_text = " ".join(item.value for item in app.markdown)
+    inventory = (ROOT / "knowledge_base/SOURCES.md").read_text()
+
+    for url in (
+        "https://www.fda.gov/media/153486/download",
+        "https://www.law.cornell.edu/cfr/text/45/164.514",
+        "https://doi.org/10.1136/bmj.b2393",
+    ):
+        assert url in page_text
+        assert url in inventory
 
 
 def test_large_reference_gap_remains_descriptive(monkeypatch):
@@ -92,9 +126,9 @@ def test_allowlisted_preview_can_be_accepted_without_replacing_source(monkeypatc
     assert not app.exception
     page_text = " ".join(item.value for item in app.markdown)
     assert "Preview ready" in page_text
-    assert [m.value for m in app.metric if m.label == "Rows before"] == ["1,200"]
+    assert [m.value for m in app.metric if m.label == "Rows before"] == ["1,031"]
     assert [m.value for m in app.metric if m.label == "Rows after"]
-    assert [m.value for m in app.metric if m.label == "Records"] == ["1,200"]
+    assert [m.value for m in app.metric if m.label == "Records"] == ["1,031"]
 
     accept = next(button for button in app.button if button.label == "Accept preview for export")
     accept.click().run(timeout=30)

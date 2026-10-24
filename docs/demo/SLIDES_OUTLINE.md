@@ -36,7 +36,7 @@ Target: seven slides, three minutes, large type, one idea per slide. Use screens
 
 **On screen:** deterministic fallback result with “Unverified explanation” visible.
 
-**Say:** The audit works without AI. An explicit explanation request sends only minimized aggregate evidence to local Ollama. Timeout, malformed output, or unsafe claims produce a visible deterministic fallback. Source-grounded RAG remains disabled because W04 is absent.
+**Say:** The audit works without AI. An explicit explanation request sends only minimized aggregate evidence to local Ollama. Timeout, malformed output, or unsafe claims produce a visible deterministic fallback. W04 sources appear as reviewed context cards, while AI retrieval remains disabled until it is verified end to end.
 
 ## 7. Evidence and next step
 
@@ -50,4 +50,4 @@ Target: seven slides, three minutes, large type, one idea per slide. Use screens
 - Input limits and identifier-screening coverage.
 - Test matrix and release-validation record.
 - Pre-existing baseline versus October 24 hackathon work.
-- Open limitations: W04 source inventory, deployment, and intended-user validation.
+- Open limitations: embedding retrieval, deployment, and intended-user validation.
