@@ -1,17 +1,41 @@
 /** @type {import('tailwindcss').Config} */
+// Daylight-lab palette. Every color reads a CSS variable (RGB channels, see index.css)
+// so light and dark mode switch together without per-class dark: variants.
+const v = (name) => `rgb(var(--${name}) / <alpha-value>)`
+const scale = (prefix, steps) => Object.fromEntries(steps.map((s) => [s, v(`${prefix}-${s}`)]))
+
 export default {
   content: ['./index.html', './src/**/*.{ts,tsx}'],
   theme: {
     extend: {
-      fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui', 'Segoe UI', 'sans-serif'] },
-      colors: {
-        ink: { 900: '#0f172a', 700: '#334155', 500: '#64748b', 300: '#cbd5e1', 100: '#f1f5f9' },
-        brand: { 50: '#eef6ff', 100: '#d9eaff', 500: '#3b6cf6', 600: '#2f56d9', 700: '#2645b0' },
-        review: { 50: '#fff7ed', 500: '#f97316', 700: '#c2410c' },
-        okay: { 50: '#ecfdf5', 500: '#10b981', 700: '#047857' },
-        unknown: { 50: '#f8fafc', 500: '#94a3b8' },
+      fontFamily: {
+        sans: ['"Instrument Sans"', 'ui-sans-serif', 'system-ui', '-apple-system', '"Segoe UI"', 'sans-serif'],
+        display: ['"Bricolage Grotesque"', '"Instrument Sans"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
       },
-      boxShadow: { card: '0 1px 2px rgba(15,23,42,.04), 0 8px 24px -12px rgba(15,23,42,.12)' },
+      colors: {
+        paper: v('paper'),
+        card: v('card'),
+        line: v('slate-200'),
+        ink: scale('ink', [100, 300, 500, 700, 900]),
+        slate: scale('slate', [50, 100, 200, 300, 400, 500, 600, 700, 800]),
+        brand: scale('brand', [50, 100, 200, 300, 500, 600, 700]),
+        teal: scale('teal', [50, 500, 700]),
+        review: scale('review', [50, 100, 200, 400, 500, 700]),
+      },
+      boxShadow: {
+        card: '0 1px 2px rgb(var(--shadow) / .05), 0 10px 28px -14px rgb(var(--shadow) / .22)',
+        lift: '0 18px 40px -18px rgb(var(--shadow) / .35)',
+      },
+      keyframes: {
+        rise: { from: { opacity: '0', transform: 'translateY(6px)' }, to: { opacity: '1', transform: 'none' } },
+        stamp: { from: { opacity: '0', transform: 'scale(1.6) rotate(-3deg)' }, to: { opacity: '1', transform: 'scale(1) rotate(-3deg)' } },
+        shimmer: { from: { backgroundPosition: '-400px 0' }, to: { backgroundPosition: '400px 0' } },
+      },
+      animation: {
+        rise: 'rise .35s ease-out both',
+        stamp: 'stamp .45s cubic-bezier(.2,1.4,.4,1) both',
+        shimmer: 'shimmer 1.2s linear infinite',
+      },
     },
   },
   plugins: [],

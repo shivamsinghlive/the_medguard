@@ -34,7 +34,7 @@ type Props = {
 function SourceTag({ source }: { source?: string }) {
   if (!source) return null
   const ai = source.startsWith('ai')
-  return <span className={`chip !py-0 text-[10px] ${ai ? 'border-violet-200 bg-violet-50 text-violet-700' : 'border-slate-200 bg-slate-50 text-slate-600'}`}>{ai ? 'AI' : 'rules'}{source === 'ai+rules' ? ' + rules' : ''}</span>
+  return <span className={`chip !py-0 text-[10px] ${ai ? 'border-brand-200 bg-brand-50 text-brand-700' : 'border-slate-200 bg-slate-50 text-slate-600'}`}>{ai ? 'AI' : 'rules'}{source === 'ai+rules' ? ' + rules' : ''}</span>
 }
 
 export default function PlanScreen(p: Props) {
@@ -59,7 +59,7 @@ export default function PlanScreen(p: Props) {
           <h1 className="text-3xl font-bold tracking-tight text-ink-900">Here is how we'll analyse your idea.</h1>
           <p className="mt-1 text-ink-500">Every suggestion shows why it was made. Change anything before running.</p>
         </div>
-        <span className={`chip !py-1.5 ${p.plan.source === 'ai' ? 'border-violet-200 bg-violet-50 text-violet-700' : 'border-slate-200 bg-white text-slate-600'}`}>
+        <span className={`chip !py-1.5 ${p.plan.source === 'ai' ? 'border-brand-200 bg-brand-50 text-brand-700' : 'border-slate-200 bg-card text-slate-600'}`}>
           <Bot size={14} /> {p.plan.source === 'ai' ? `Planned with local AI (${p.plan.ai.model}) + rules` : 'Planned with transparent rules'}
         </span>
       </div>
@@ -71,7 +71,7 @@ export default function PlanScreen(p: Props) {
 
       <div className="grid gap-5 md:grid-cols-2">
         <section className="card p-5">
-          <div className="mb-3 flex items-center gap-2"><Target size={18} className="text-rose-500" /><h2 className="font-bold text-ink-900">Outcome to predict</h2></div>
+          <div className="mb-3 flex items-center gap-2"><Target size={18} className="text-slate-500" /><h2 className="font-bold text-ink-900">Outcome to predict</h2></div>
           <select className="field" value={p.roles.outcome ?? ''} onChange={(e) => {
             const v = e.target.value || null
             p.setRoles({ ...p.roles, outcome: v, demographics: p.roles.demographics.filter((c) => c !== v), identifiers: p.roles.identifiers.filter((c) => c !== v) })
@@ -91,7 +91,7 @@ export default function PlanScreen(p: Props) {
             {cols.filter((c) => c.name !== p.roles.outcome).map((c) => {
               const on = p.roles.identifiers.includes(c.name)
               return <button key={c.name} onClick={() => toggle('identifiers', c.name)}
-                className={`chip ${on ? 'border-slate-700 bg-slate-800 text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-400'}`}>{c.name}</button>
+                className={`chip ${on ? 'border-brand-500 bg-brand-600 text-white' : 'border-slate-200 bg-card text-slate-600 hover:border-slate-400'}`}>{c.name}</button>
             })}
           </div>
           <ul className="mt-3 space-y-1 text-sm text-ink-500">
@@ -100,12 +100,12 @@ export default function PlanScreen(p: Props) {
         </section>
 
         <section className="card p-5 md:col-span-2">
-          <div className="mb-3 flex items-center gap-2"><Users size={18} className="text-violet-500" /><h2 className="font-bold text-ink-900">Population groups</h2></div>
+          <div className="mb-3 flex items-center gap-2"><Users size={18} className="text-brand-500" /><h2 className="font-bold text-ink-900">Population groups</h2></div>
           <div className="flex flex-wrap gap-1.5">
             {cols.filter((c) => c.name !== p.roles.outcome && c.kind === 'categorical' && !p.roles.identifiers.includes(c.name) && !c.id_like).map((c) => {
               const on = p.roles.demographics.includes(c.name)
               return <button key={c.name} onClick={() => toggle('demographics', c.name)}
-                className={`chip ${on ? 'border-violet-500 bg-violet-600 text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-violet-400'}`}>{c.name}</button>
+                className={`chip ${on ? 'border-brand-500 bg-brand-600 text-white' : 'border-slate-200 bg-card text-slate-600 hover:border-brand-300'}`}>{c.name}</button>
             })}
           </div>
           <ul className="mt-3 space-y-1 text-sm text-ink-500">
@@ -117,7 +117,7 @@ export default function PlanScreen(p: Props) {
             {p.focus.length === 0 && <p className="text-sm text-ink-500">None matched. Add one below to get a dedicated answer about it.</p>}
             <div className="flex flex-wrap gap-2">
               {p.focus.map((f, i) => (
-                <span key={i} className={`chip !py-1 ${f.missing ? 'border-orange-200 bg-review-50 text-review-700' : 'border-violet-200 bg-violet-50 text-violet-700'}`} title={f.reason}>
+                <span key={i} className={`chip !py-1 ${f.missing ? 'border-review-200 bg-review-50 text-review-700' : 'border-brand-200 bg-brand-50 text-brand-700'}`} title={f.reason}>
                   {f.missing ? `"${f.concept}" not in ${f.column}` : `${f.label} · ${f.column}`}
                   <button onClick={() => p.setFocus(p.focus.filter((_, j) => j !== i))} aria-label="Remove"><X size={12} /></button>
                 </span>
@@ -128,7 +128,7 @@ export default function PlanScreen(p: Props) {
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 <span className="text-xs text-ink-500">Add focus:</span>
                 {p.roles.demographics.flatMap((c) => labelsOf(c).map((l) => ({ c, l }))).filter(({ c, l }) => !p.focus.some((f) => f.column === c && f.label === l)).slice(0, 16).map(({ c, l }) => (
-                  <button key={c + l} className="chip border-dashed border-slate-300 text-slate-600 hover:border-violet-400"
+                  <button key={c + l} className="chip border-dashed border-slate-300 text-slate-600 hover:border-brand-300"
                     onClick={() => p.setFocus([...p.focus, { column: c, label: l, concept: l, missing: false, reason: 'added by you' }])}>+ {l} <span className="opacity-60">({c})</span></button>
                 ))}
               </div>
@@ -151,7 +151,7 @@ export default function PlanScreen(p: Props) {
               return (
                 <div key={c} className="mb-3">
                   <div className="mb-1 flex items-center justify-between text-sm font-semibold text-ink-700">{c}
-                    {Object.keys(ref).length > 0 && <span className={`text-xs ${Math.abs(total - 1) < 1e-6 ? 'text-okay-700' : 'text-review-700'}`}>total {(total * 100).toFixed(1)}%</span>}</div>
+                    {Object.keys(ref).length > 0 && <span className={`text-xs ${Math.abs(total - 1) < 1e-6 ? 'text-ink-500' : 'text-review-700'}`}>total {(total * 100).toFixed(1)}%</span>}</div>
                   <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                     {labelsOf(c).map((l) => (
                       <label key={l} className="flex items-center gap-1 text-xs text-ink-700">
@@ -195,7 +195,7 @@ export default function PlanScreen(p: Props) {
               {Object.entries(p.titles).map(([id, title]) => {
                 const on = p.widgets.includes(id)
                 return <button key={id} onClick={() => p.setWidgets(on ? p.widgets.filter((w) => w !== id) : [...p.widgets, id])}
-                  className={`chip !py-1.5 ${on ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-slate-200 bg-white text-slate-500'}`}>{title}</button>
+                  className={`chip !py-1.5 ${on ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-slate-200 bg-card text-slate-500'}`}>{title}</button>
               })}
             </div>
           </section>

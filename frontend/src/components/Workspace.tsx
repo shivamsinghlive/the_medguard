@@ -1,78 +1,89 @@
-import { FilterX, HelpCircle, Plus, RefreshCw, X } from 'lucide-react'
-import type { FocusGroup, Idea } from '../api'
-import Canvas, { ICONS } from './Canvas'
-import { STATUS, Spinner, StatusBadge, fmtNum } from './ui'
-import WidgetPanel from './WidgetPanel'
+import { ChevronDown, HelpCircle, Maximize2, Plus, X } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import type { Filters, FocusGroup, Idea, Roles } from '../api'
+import Canvas, { ICONS, type Spark } from './Canvas'
+import ChangePreview from './ChangePreview'
+import StatusStrip from './evidence/StatusStrip'
+import FilterBar from './FilterBar'
+import { STATUS, StatusBadge, dotColor } from './ui'
 
 type Props = {
   idea: Idea
+  dataset: any
+  roles: Roles
   results: any
   titles: Record<string, string>
   widgets: string[]
   setWidgets: (w: string[]) => void
   selected: string
   setSelected: (w: string) => void
-  filters: Record<string, string[]>
-  setFilters: (f: Record<string, string[]>) => void
+  onOpen: (w: string) => void
+  filters: Filters
+  setFilters: (f: Filters) => void
+  history: { canUndo: boolean; canRedo: boolean; undo: () => void; redo: () => void }
   focus: FocusGroup[]
   running: boolean
-  aiOn: boolean
-  onExplain: (widget: string) => Promise<any>
+}
+
+const STATUS_ORDER = ['review_needed', 'insufficient_evidence', 'descriptive_only', 'no_patterns_found', 'not_available']
+const TILE_WIDGET: Record<string, string> = { Structure: 'validation', Identifiers: 'screening', Quality: 'rows', Representation: 'representation' }
+
+function sparks(results: any): Record<string, Spark> {
+  const r = results.readiness, ev = results.evidence
+  const funnel = ev.mosaic.funnel
+  const top = r.rank?.[0]
+  const maxMissing = Math.max(0, ...r.missingness.map((m: any) => m.overall_rate ?? 0))
+  return {
+    rows: { kind: 'share', value: funnel[funnel.length - 1].rows / Math.max(funnel[0].rows, 1), review: funnel[funnel.length - 1].rows < funnel[0].rows },
+    screening: { kind: 'share', value: ev.coverage.percent / 100 },
+    outcome: r.outcome ? { kind: 'shares', values: r.outcome.classes.map((c: any) => c.count) } : null,
+    representation: ev.cohort.length ? { kind: 'shares', values: ev.cohort[0].groups.map((g: any) => g.count) } : null,
+    missingness: r.missingness.length ? { kind: 'share', value: maxMissing, review: true } : null,
+    leakage: top ? { kind: 'share', value: top.value, review: top.metric === 'auc' ? top.value >= r.settings.leakage_auc : top.value >= r.settings.leakage_nmi } : null,
+    projection: r.projection.points.length ? { kind: 'share', value: r.projection.explained_variance.reduce((a: number, b: number) => a + b, 0) } : null,
+  }
 }
 
 export default function Workspace(p: Props) {
   const { results } = p
   const board: any[] = results.board
-  const card = board.find((b) => b.id === p.selected)
-  const addFilter = (column: string, label: string) => {
-    if (!column || label == null) return
-    const current = p.filters[column] ?? []
-    if (current.includes(label)) return
-    p.setFilters({ ...p.filters, [column]: [...current, label] })
-  }
-  const removeFilter = (column: string, label: string) => {
-    const next = { ...p.filters, [column]: (p.filters[column] ?? []).filter((l) => l !== label) }
-    if (!next[column].length) delete next[column]
-    p.setFilters(next)
-  }
-  const filtered = Object.keys(p.filters).length > 0
-  const counts: Record<string, number> = {}
-  board.forEach((b) => { counts[b.status] = (counts[b.status] ?? 0) + 1 })
+  const [allAnswers, setAllAnswers] = useState(false)
+  const answers = useMemo(() => [...results.answers].sort((a: any, b: any) => STATUS_ORDER.indexOf(a.status) - STATUS_ORDER.indexOf(b.status)), [results.answers])
+  const shownAnswers = allAnswers ? answers : answers.slice(0, 3)
+  const cardSparks = useMemo(() => sparks(results), [results])
 
   return (
-    <div className="mx-auto max-w-[1500px] space-y-6 px-6 py-6">
-      <section className="card overflow-hidden">
-        <div className="bg-gradient-to-r from-brand-600 via-indigo-600 to-violet-600 px-6 py-5 text-white">
-          <div className="text-xs font-semibold uppercase tracking-widest text-white/70">{p.idea.title || 'Research question'}</div>
-          <div className="mt-1 text-xl font-bold leading-snug">{p.idea.question}</div>
-          <div className="mt-2 flex flex-wrap gap-2 text-xs">
-            {results.readiness.roles.outcome && <span className="rounded-full bg-white/15 px-2.5 py-1">Outcome: <b>{results.readiness.roles.outcome}</b></span>}
-            {results.readiness.roles.demographics.map((d: string) => <span key={d} className="rounded-full bg-white/15 px-2.5 py-1">Group: <b>{d}</b></span>)}
-            <span className="rounded-full bg-white/15 px-2.5 py-1">{results.dataset.name}</span>
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-3 px-6 py-3">
-          <div className="text-sm text-ink-700">
-            Analysing <b>{fmtNum(results.subset.row_count)}</b> of {fmtNum(results.subset.total_rows)} rows
-          </div>
-          {Object.entries(p.filters).flatMap(([c, ls]) => ls.map((l) => (
-            <span key={c + l} className="chip border-brand-200 bg-brand-50 text-brand-700">{c} = {l}
-              <button onClick={() => removeFilter(c, l)} aria-label={`Remove filter ${c} ${l}`}><X size={12} /></button></span>
-          )))}
-          {filtered && <button className="btn-ghost !px-2 !py-1 text-xs" onClick={() => p.setFilters({})}><FilterX size={14} />Clear filters</button>}
-          {!filtered && <span className="text-xs text-ink-500">Tip: click bars in charts to focus on a group or class.</span>}
-          {p.running && <span className="ml-auto"><Spinner label="Recomputing…" /></span>}
-          <div className="ml-auto flex gap-2">
-            {Object.entries(counts).map(([s, n]) => <span key={s} className="chip border-slate-200 bg-white text-slate-600"><span className="h-2 w-2 rounded-full" style={{ background: STATUS[s]?.dot }} />{n} {STATUS[s]?.label.toLowerCase()}</span>)}
+    <div className="mx-auto max-w-[1500px] space-y-6 px-4 py-6 sm:px-6">
+      <section data-tour="question" className="relative overflow-hidden rounded-3xl bg-[linear-gradient(135deg,#0B1430_0%,#13204A_55%,#24357A_100%)] p-6 text-white shadow-lift sm:p-8">
+        <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-[#2F5BFF]/30 blur-3xl" aria-hidden />
+        <div className="pointer-events-none absolute -bottom-28 right-40 h-64 w-64 rounded-full bg-[#13B5A6]/20 blur-3xl" aria-hidden />
+        <div className="relative">
+          <div className="text-xs font-bold uppercase tracking-[0.14em] text-white/60">{p.idea.title || 'Research question'}</div>
+          <h1 className="mt-2 max-w-4xl font-display text-2xl font-bold leading-tight tracking-tight sm:text-3xl">{p.idea.question}</h1>
+          <div className="mt-4 flex flex-wrap gap-2 text-xs">
+            {results.readiness.roles.outcome && <span className="rounded-full border border-white/20 bg-white/10 px-2.5 py-1">Outcome <b>{results.readiness.roles.outcome}</b></span>}
+            {results.readiness.roles.demographics.map((d: string) => <span key={d} className="rounded-full border border-white/20 bg-white/10 px-2.5 py-1">Group <b>{d}</b></span>)}
+            <span className="rounded-full border border-white/20 bg-white/10 px-2.5 py-1">{results.dataset.name}</span>
           </div>
         </div>
       </section>
 
-      <section>
-        <h2 className="mb-3 flex items-center gap-2 text-lg font-bold text-ink-900"><HelpCircle size={18} className="text-brand-500" />Answers for your research question</h2>
+      <div className="sticky top-[61px] z-20 rounded-2xl border border-slate-200 bg-card/95 px-4 py-3 shadow-card backdrop-blur">
+        <FilterBar filters={p.filters} onChange={p.setFilters} rowCount={results.subset.row_count} totalRows={results.subset.total_rows}
+          running={p.running} canUndo={p.history.canUndo} canRedo={p.history.canRedo} onUndo={p.history.undo} onRedo={p.history.redo} />
+      </div>
+
+      <div data-tour="status"><StatusStrip tiles={results.evidence.status_tiles} onOpen={(label) => p.onOpen(TILE_WIDGET[label])} /></div>
+
+      <section aria-labelledby="answers-title">
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <h2 id="answers-title" className="flex items-center gap-2 font-display text-lg font-bold text-ink-900"><HelpCircle size={18} className="text-brand-500" />Answers for your research question</h2>
+          {answers.length > 3 && <button className="btn-ghost !px-2 !py-1 text-xs" onClick={() => setAllAnswers(!allAnswers)}>
+            {allAnswers ? 'Show top 3' : `Show all ${answers.length}`}<ChevronDown size={14} className={allAnswers ? 'rotate-180' : ''} /></button>}
+        </div>
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {results.answers.map((a: any) => (
-            <div key={a.question} className={`card border-l-4 p-4`} style={{ borderLeftColor: STATUS[a.status]?.dot }}>
+          {shownAnswers.map((a: any) => (
+            <div key={a.question} className={`card p-4 animate-rise ${a.status === 'review_needed' ? 'border-l-4 border-l-review-500' : ''}`}>
               <div className="flex items-start justify-between gap-2">
                 <div className="font-semibold text-ink-900">{a.question}</div>
                 <StatusBadge status={a.status} small />
@@ -83,53 +94,48 @@ export default function Workspace(p: Props) {
         </div>
       </section>
 
-      <section className="grid gap-4 xl:grid-cols-[1fr_260px]">
+      <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_270px]">
         <div>
-          <div className="mb-2 flex items-center justify-between">
-            <h2 className="text-lg font-bold text-ink-900">Workflow</h2>
-            <span className="text-xs text-ink-500">Drag to rearrange · click a widget to open it below</span>
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <h2 className="font-display text-lg font-bold text-ink-900">Workflow</h2>
+            <span className="text-xs text-ink-500">Scroll to zoom · drag to pan or rearrange · double-click a card to open it</span>
           </div>
-          <Canvas board={board} selected={p.selected} onSelect={p.setSelected} datasetName={results.dataset.name}
-            question={p.idea.title || p.idea.question} rows={`${fmtNum(results.subset.row_count)} rows`} />
+          <Canvas board={board} sparks={cardSparks} selected={p.selected} onSelect={p.setSelected} onOpen={p.onOpen} datasetName={results.dataset.name}
+            question={p.idea.title || p.idea.question} rows={`${results.subset.row_count.toLocaleString('en-US')} rows`} />
         </div>
-        <aside className="card p-4">
-          <h3 className="mb-1 font-bold text-ink-900">Widgets</h3>
-          <p className="mb-3 text-xs text-ink-500">Add or remove analysis steps.</p>
-          <div className="space-y-1">
+        <aside className="card p-4" data-tour="widgets">
+          <h3 className="font-bold text-ink-900">Widgets</h3>
+          <p className="mb-3 text-xs text-ink-500">Open, add or remove analysis steps.</p>
+          <ul className="space-y-0.5">
             {Object.entries(p.titles).map(([id, title]) => {
               const on = p.widgets.includes(id)
               const Icon = ICONS[id]
               const b = board.find((x) => x.id === id)
               return (
-                <div key={id} className={`flex items-center gap-2 rounded-xl px-2 py-1.5 ${p.selected === id ? 'bg-brand-50' : 'hover:bg-slate-50'}`}>
-                  <button className="flex min-w-0 flex-1 items-center gap-2 text-left text-sm" disabled={!on} onClick={() => p.setSelected(id)}>
-                    {Icon && <Icon size={15} className={on ? 'text-brand-600' : 'text-slate-300'} />}
-                    <span className={`truncate ${on ? 'font-medium text-ink-900' : 'text-slate-400'}`}>{title}</span>
-                    {b && <span className="ml-auto h-2 w-2 shrink-0 rounded-full" style={{ background: STATUS[b.status]?.dot }} />}
+                <li key={id} className={`group flex items-center gap-2 rounded-xl px-2 py-1.5 ${p.selected === id ? 'bg-brand-50' : 'hover:bg-slate-50'}`}>
+                  <button className="flex min-w-0 flex-1 items-center gap-2 text-left text-sm" disabled={!on} onClick={() => p.setSelected(id)} onDoubleClick={() => on && p.onOpen(id)}>
+                    {Icon && <Icon size={15} className={on ? 'text-ink-700' : 'text-ink-300'} />}
+                    <span className={`truncate ${on ? 'font-medium text-ink-900' : 'text-ink-300'}`}>{title}</span>
+                    {b && <span className="ml-auto h-2 w-2 shrink-0 rounded-full" style={{ background: dotColor(b.status) }} title={STATUS[b.status]?.label} />}
                   </button>
-                  <button className="rounded-lg p-1 text-ink-500 hover:bg-slate-200" title={on ? 'Remove' : 'Add'}
+                  {on && <button className="rounded-lg p-1 text-ink-500 opacity-0 transition hover:bg-slate-200 focus:opacity-100 group-hover:opacity-100" title="Open full screen" aria-label={`Open ${title}`} onClick={() => p.onOpen(id)}><Maximize2 size={13} /></button>}
+                  <button className="rounded-lg p-1 text-ink-500 hover:bg-slate-200" title={on ? 'Remove' : 'Add'} aria-label={`${on ? 'Remove' : 'Add'} ${title}`}
                     onClick={() => p.setWidgets(on ? p.widgets.filter((w) => w !== id) : [...p.widgets, id])}>
                     {on ? <X size={14} /> : <Plus size={14} />}
                   </button>
-                </div>
+                </li>
               )
             })}
-          </div>
-          <div className="mt-4 rounded-xl bg-slate-50 p-3 text-xs text-ink-500">
-            <RefreshCw size={12} className="mr-1 inline" />Every number is recomputed from your file whenever roles, filters or settings change.
-          </div>
+          </ul>
         </aside>
       </section>
 
-      {card && (
-        <WidgetPanel widget={p.selected} title={p.titles[p.selected]} results={results} card={card} focus={p.focus}
-          onFilter={addFilter} onExplain={() => p.onExplain(p.selected)} aiOn={p.aiOn} />
-      )}
+      <ChangePreview dataset={p.dataset} roles={p.roles} />
 
-      <section className="card p-5 text-sm text-ink-500">
-        <h3 className="mb-2 font-bold text-ink-900">What this does not tell you</h3>
-        <ul className="list-disc space-y-1 pl-5">{results.readiness.limitations.map((l: string) => <li key={l}>{l}</li>)}</ul>
-      </section>
+      <details className="card p-5 text-sm text-ink-700">
+        <summary className="cursor-pointer font-bold text-ink-900">What this does not tell you ({results.readiness.limitations.length})</summary>
+        <ul className="mt-3 list-disc space-y-1 pl-5">{results.readiness.limitations.map((l: string) => <li key={l}>{l}</li>)}</ul>
+      </details>
     </div>
   )
 }

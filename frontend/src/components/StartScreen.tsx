@@ -4,10 +4,10 @@ import type { Idea } from '../api'
 import { Note, Spinner, fmtNum } from './ui'
 
 const KIND_STYLE: Record<string, string> = {
-  numeric: 'border-sky-200 bg-sky-50 text-sky-700',
-  categorical: 'border-violet-200 bg-violet-50 text-violet-700',
-  text: 'border-amber-200 bg-amber-50 text-amber-700',
-  datetime: 'border-rose-200 bg-rose-50 text-rose-700',
+  numeric: 'border-brand-200 bg-brand-50 text-brand-700',
+  categorical: 'border-teal-500/40 bg-teal-50 text-teal-700',
+  text: 'border-slate-300 bg-slate-50 text-slate-700',
+  datetime: 'border-dashed border-slate-300 bg-card text-slate-700',
 }
 
 type Props = {
@@ -44,7 +44,7 @@ export default function StartScreen({ idea, setIdea, demos, dataset, loading, on
       <div className="grid gap-6 lg:grid-cols-[1.1fr_1fr]">
         <section className="card p-6">
           <div className="mb-4 flex items-center gap-2">
-            <Lightbulb className="text-amber-500" size={20} />
+            <Lightbulb className="text-brand-500" size={20} />
             <h2 className="text-lg font-bold text-ink-900">1 · Research idea</h2>
           </div>
           <div className="space-y-4">
@@ -102,7 +102,7 @@ export default function StartScreen({ idea, setIdea, demos, dataset, loading, on
             <div className="grid gap-2 sm:grid-cols-2">
               {demos.map((d) => (
                 <button key={d.name} onClick={() => onDemo(d.name)}
-                  className={`rounded-xl border px-3 py-2 text-left text-sm transition hover:border-brand-500 ${dataset?.name === d.name ? 'border-brand-500 bg-brand-50' : 'border-slate-200 bg-white'}`}>
+                  className={`rounded-xl border px-3 py-2 text-left text-sm transition hover:border-brand-500 ${dataset?.name === d.name ? 'border-brand-500 bg-brand-50' : 'border-slate-200 bg-card'}`}>
                   <div className="font-semibold capitalize text-ink-900">{pretty(d.name)}</div>
                   <div className="text-xs text-ink-500">{(d.bytes / 1024).toFixed(0)} KB · synthetic</div>
                 </button>
@@ -136,14 +136,14 @@ export default function StartScreen({ idea, setIdea, demos, dataset, loading, on
               {dataset.validation.warnings.map((w: any) => <div key={w.code} className="mt-2"><Note tone="warn">{w.message}</Note></div>)}
               <div className="mt-3 flex flex-wrap gap-1.5">
                 {dataset.columns.map((c: any) => (
-                  <span key={c.name} className={`chip ${KIND_STYLE[c.kind] ?? 'border-slate-200 bg-white text-slate-600'}`} title={`${c.kind} · ${c.distinct} distinct · ${c.missing_count} missing`}>
+                  <span key={c.name} className={`chip ${KIND_STYLE[c.kind] ?? 'border-slate-200 bg-card text-slate-600'}`} title={`${c.kind} · ${c.distinct} distinct · ${c.missing_count} missing`}>
                     {c.name}
                     {c.missing_count > 0 && <span className="text-[10px] opacity-70">· {c.missing_count} missing</span>}
                   </span>
                 ))}
               </div>
               {showPreview && (
-                <div className="mt-3 max-h-64 overflow-auto rounded-xl border border-slate-200 bg-white">
+                <div className="mt-3 max-h-64 overflow-auto rounded-xl border border-slate-200 bg-card">
                   <table className="min-w-full text-xs">
                     <thead className="sticky top-0 bg-slate-100">
                       <tr>{dataset.columns.map((c: any) => <th key={c.name} className="whitespace-nowrap px-2 py-1.5 text-left font-semibold text-ink-700">{c.name}</th>)}</tr>
