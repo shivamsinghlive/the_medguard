@@ -60,9 +60,11 @@ def test_guided_demo_exercises_quality_evidence(monkeypatch):
     app = run_app(monkeypatch)
 
     assert not app.exception
-    assert [m.value for m in app.metric if m.label == "Missing cells"] == ["340"]
-    assert [m.value for m in app.metric if m.label == "Exact duplicate rows"] == ["62"]
-    assert [m.value for m in app.metric if m.label == "Columns checked"] == ["17"]
+    focus = next(widget for widget in app.selectbox if widget.label == "Missing-values focus")
+    assert focus.options == ["All columns", "bmi", "hba1c"]
+    focus.set_value("hba1c").run(timeout=30)
+    assert not app.exception
+    assert any("Focus column: hba1c" in caption.value for caption in app.caption)
 
 
 def test_reviewed_context_links_match_w04_inventory(monkeypatch):

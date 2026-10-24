@@ -26,16 +26,15 @@ from services.contracts import ChangePreviewError, RepresentationInputError
 from services.input_validation import validate_input
 from ui.visuals import (
     PLOTLY_CONFIG,
-    build_mosaic_payload,
-    completeness_donut,
     cohort_distribution_donut,
-    cohort_dumbbell,
-    missingness_bars,
+    completeness_donut,
+    missingness_lollipop,
     render_change_map,
+    render_cohort_evidence,
     render_dataset_mosaic,
     render_identifier_coverage,
+    render_quality_tiles,
     render_status_strip,
-    render_waffle,
 )
 
 
@@ -110,10 +109,11 @@ st.markdown(
       --mg-teal: #13B5A6; --mg-teal-bright: #13B5A6; --mg-teal-soft: #DDF6F3;
       --mg-coral: #FF8A3D; --mg-coral-soft: #FFEBDD; --mg-amber: #8A3A05;
       --mg-amber-soft: #FFEBDD; --mg-surface: #FFFFFF; --mg-border: #DDE2EE;
-      --mg-cobalt: #2F5BFF; --mg-cobalt-soft: #E6ECFF;
+      --mg-cobalt: #2F5BFF; --mg-cobalt-soft: #E6ECFF; --mg-accent-text: #1E3AB8;
     }
     html { scroll-behavior: smooth; }
-    html, body, [class*="css"] { font-family: "Instrument Sans", system-ui, sans-serif; }
+    html, body, [class*="css"] {
+      font-family: "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif; }
     body { font-variant-numeric: tabular-nums; }
     .stApp { background:
       radial-gradient(circle at 82% 4%, rgba(88,101,242,.13), transparent 28rem),
@@ -121,7 +121,8 @@ st.markdown(
       linear-gradient(180deg, #F4F6FB 0%, #F4F6FB 100%); }
     .block-container { max-width: 1240px; padding-top: 1.35rem; padding-bottom: 5rem; }
     h1, h2, h3, .mg-section-title, .mg-title, [data-testid="stMetricValue"] {
-      color: var(--mg-ink); font-family: "Bricolage Grotesque", system-ui, sans-serif;
+      color: var(--mg-ink);
+      font-family: "Bricolage Grotesque", "Instrument Sans", system-ui, -apple-system, sans-serif;
       letter-spacing: -0.035em; }
     p, li, label { color: var(--mg-muted); }
     #MainMenu, footer, [data-testid="stToolbar"] { visibility: hidden; }
@@ -177,7 +178,7 @@ st.markdown(
     }
     .mg-section { display: flex; align-items: end; justify-content: space-between; gap: 1rem;
       margin: 2.25rem 0 .75rem; }
-    .mg-section-kicker { color: var(--mg-teal); font-size: .7rem; font-weight: 800;
+    .mg-section-kicker { color: var(--mg-accent-text); font-size: .7rem; font-weight: 800;
       letter-spacing: .12em; text-transform: uppercase; }
     .mg-section-title { color: var(--mg-ink); font-size: 1.55rem; font-weight: 760;
       letter-spacing: -.035em; margin-top: .15rem; }
@@ -235,7 +236,7 @@ st.markdown(
     .mg-source-card::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 4px;
       background: linear-gradient(#26c9b6,#6d63f2); }
     .mg-source-card:hover { transform: translateY(-3px); box-shadow: 0 20px 42px rgba(27,47,84,.12); }
-    .mg-source-label { color: var(--mg-teal); font-size: .66rem; font-weight: 850;
+    .mg-source-label { color: var(--mg-accent-text); font-size: .66rem; font-weight: 850;
       letter-spacing: .1em; text-transform: uppercase; }
     .mg-source-title { color: var(--mg-ink); font-size: .96rem; font-weight: 780;
       margin: .35rem 0 .12rem; }
@@ -284,11 +285,11 @@ st.markdown(
     .stDownloadButton > button, .stButton > button { border-radius: 12px; font-weight: 750;
       min-height: 2.8rem; transition: transform .18s ease, box-shadow .18s ease; }
     .stButton > button[kind="primary"] { border: 0; color: white;
-      background: linear-gradient(105deg,#087f78,#4b55c8); box-shadow: 0 9px 24px rgba(40,76,152,.20); }
+      background: var(--mg-cobalt); box-shadow: 0 9px 24px rgba(47,91,255,.22); }
     .stButton > button p, .stDownloadButton > button p { color: inherit; }
-    .stButton > button[kind="secondary"] { border: 1px solid #c7d9d4; color: var(--mg-ink);
+    .stButton > button[kind="secondary"] { border: 1px solid var(--mg-border); color: var(--mg-ink);
       background: white; }
-    .stButton > button[kind="secondary"]:hover { border-color: var(--mg-teal); color: var(--mg-teal); }
+    .stButton > button[kind="secondary"]:hover { border-color: var(--mg-cobalt); color: var(--mg-accent-text); }
     .stButton > button:hover, .stDownloadButton > button:hover { transform: translateY(-1px);
       box-shadow: 0 10px 24px rgba(36,57,100,.13); }
     .stButton > button:disabled, .stButton > button:disabled:hover {
@@ -631,12 +632,6 @@ st.markdown(
 )
 render_status_strip(report)
 
-missing_focus_options = ["All columns"] + list(quality["missing_by_column"])
-missing_focus = st.selectbox(
-    "Missing-values mosaic focus",
-    missing_focus_options,
-    help="This selector filters the missing-values lens without changing the audit.",
-)
 st.markdown(
     '<div class="mg-section"><div><div class="mg-section-kicker">Interactive row map</div>'
     '<div class="mg-section-title">Explore measured row flags</div></div>'
@@ -644,11 +639,22 @@ st.markdown(
     'No raw record is copied into the component.</div></div>',
     unsafe_allow_html=True,
 )
+missing_focus = None
+if quality["missing_by_column"]:
+    focus_choice = st.selectbox(
+        "Missing-values focus",
+        ["All columns"] + list(quality["missing_by_column"]),
+        help=(
+            "Choosing a column opens the mosaic on the Missing values lens for that column and "
+            "highlights it in Data quality. The audit itself does not change."
+        ),
+    )
+    missing_focus = None if focus_choice == "All columns" else focus_choice
 render_dataset_mosaic(
     data,
     report,
     demographic_column=demographic_columns[0] if demographic_columns else None,
-    selected_missing_column=None if missing_focus == "All columns" else missing_focus,
+    focus_column=missing_focus,
 )
 
 st.markdown('<div id="review-evidence"></div>', unsafe_allow_html=True)
@@ -779,7 +785,7 @@ with cohorts_tab:
     if not representation["attributes"]:
         st.info("Select at least one demographic column to view cohort evidence.")
     for attribute in representation["attributes"]:
-        st.markdown(f"### {attribute['column']}")
+        render_cohort_evidence(attribute)
         rows = []
         for group in attribute["groups"]:
             rows.append(
@@ -801,19 +807,10 @@ with cohorts_tab:
                     ),
                 }
             )
-        table = pd.DataFrame(rows)
-        chart_col, table_col = st.columns([1.05, 0.95])
-        with chart_col:
-            st.plotly_chart(
-                cohort_dumbbell(attribute),
-                use_container_width=True,
-                config=PLOTLY_CONFIG,
-            )
-        with table_col:
-            st.dataframe(table, use_container_width=True, hide_index=True)
-        render_waffle(attribute)
+        st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
         st.caption(
-            f"Denominator: {attribute['observed_count']:,} nonmissing values. "
+            f"Text alternative for {attribute['column']}. Denominator: "
+            f"{attribute['observed_count']:,} nonmissing values. "
             f"Missing values: {attribute['missing_count']:,}."
         )
     with st.expander("Measured representation result"):
@@ -829,10 +826,6 @@ with privacy_tab:
     )
     st.write(f"**Status:** {SCREENING_STATUS_LABELS[screening['status']]}")
     coverage = screening["coverage"]
-    coverage_cols = st.columns(3)
-    coverage_cols[0].metric("Rows screened", f"{coverage['rows_scanned']:,}")
-    coverage_cols[1].metric("Columns screened", f"{coverage['column_count']:,}")
-    coverage_cols[2].metric("Checks applied", f"{len(coverage['checks']):,}")
     st.caption(
         f"Checked column names and values across {coverage['rows_scanned']:,} of "
         f"{coverage['row_count']:,} rows and {coverage['column_count']:,} columns."
@@ -849,11 +842,7 @@ with privacy_tab:
         st.json(screening)
 
 with quality_tab:
-    quality_cols = st.columns(4)
-    quality_cols[0].metric("Missing cells", f"{quality['missing_cells']:,}")
-    quality_cols[1].metric("Rows with a gap", f"{int(data.isna().any(axis=1).sum()):,}")
-    quality_cols[2].metric("Exact duplicate rows", quality["duplicate_rows"])
-    quality_cols[3].metric("Columns checked", report["dataset"]["column_count"])
+    render_quality_tiles(data, report)
     if quality["missing_by_column"]:
         missing_chart_data = pd.DataFrame(
             [
@@ -868,10 +857,14 @@ with quality_tab:
             ]
         )
         st.plotly_chart(
-            missingness_bars(quality["missing_by_column"], len(data)),
+            missingness_lollipop(
+                quality["missing_by_column"], len(data), column_roles, focus_column=missing_focus
+            ),
             use_container_width=True,
             config=PLOTLY_CONFIG,
         )
+        if missing_focus:
+            st.caption(f"Focus column: {missing_focus}. The mosaic shows its missing rows.")
         with st.expander("View missingness table"):
             st.dataframe(missing_chart_data, use_container_width=True, hide_index=True)
     else:
@@ -1144,9 +1137,7 @@ render_change_map(
     source_fingerprint=report["dataset"]["fingerprint"],
     preview_result=preview_result if preview_current else None,
     preview_frame=preview_frame if preview_current else None,
-    protected_roles={
-        column: role for column, role in column_roles.items() if role != "feature"
-    },
+    column_roles=column_roles,
     accepted=accepted,
 )
 
