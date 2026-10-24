@@ -77,3 +77,15 @@ def test_plans_never_use_the_local_model_in_public_mode(client, monkeypatch):
 def test_oversized_uploads_are_refused_before_reading(client):
     big = client.post('/api/datasets/upload', headers={**ALICE, 'Content-Length': str(26 * 1024 * 1024)}, content=b'a,b\n1,2\n')
     assert big.status_code == 413
+
+
+def test_health_reports_upload_limits(client):
+    limits = client.get('/api/health').json()['limits']
+    assert limits['max_upload_mb'] == server.MAX_UPLOAD_BYTES // (1024 * 1024)
+    assert limits['max_rows'] == server.MAX_ROWS
+
+
+def test_row_limit_applies_to_uploads(client, monkeypatch):
+    monkeypatch.setattr(server, 'MAX_ROWS', 3)
+    rejected = client.post('/api/datasets/upload', headers=ALICE, content=b'a,b\n1,2\n3,4\n5,6\n7,8\n').json()
+    assert rejected['accepted'] is False

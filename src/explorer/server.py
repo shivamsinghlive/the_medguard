@@ -5,7 +5,8 @@ deterministic services; nothing is precomputed or hard-coded.
 
 Locally it binds to 127.0.0.1. As a public demo (MEDGUARD_PUBLIC=1) each visitor
 gets a private session, datasets expire after SESSION_TTL_SECONDS, and the local
-AI is off. MEDGUARD_HOST and PORT choose where it listens.
+AI is off. MEDGUARD_HOST and PORT choose where it listens; MEDGUARD_MAX_UPLOAD_MB,
+MEDGUARD_MAX_ROWS, and MEDGUARD_MAX_SESSIONS keep memory within small hosting plans.
 """
 from collections import OrderedDict
 import hashlib
@@ -30,7 +31,7 @@ from explorer import insights, llm, planner
 from services.audit_runner import reviewed_copy_csv, run_audit
 from services.change_preview import preview_changes
 from services.contracts import ChangePreviewError, RepresentationInputError
-from services.input_validation import DEFAULT_MAX_BYTES, validate_input
+from services.input_validation import DEFAULT_MAX_BYTES, DEFAULT_MAX_ROWS, validate_input
 from services.readiness import (
     DEFAULT_SETTINGS, MISSING_LABEL, ReadinessInputError, _feature_profile, analyze_readiness, apply_filters,
 )
@@ -44,7 +45,9 @@ from utils.audit_input import dataset_fingerprint
 DEMO_DIR = ROOT / 'data' / 'synthetic'
 STATIC_DIR = ROOT / 'frontend' / 'dist'
 MAX_DATASETS = 2  # per session; older ones are dropped first
-MAX_SESSIONS = 200
+MAX_SESSIONS = int(os.environ.get('MEDGUARD_MAX_SESSIONS', '200'))
+MAX_UPLOAD_BYTES = min(int(os.environ.get('MEDGUARD_MAX_UPLOAD_MB', '25')) * 1024 * 1024, DEFAULT_MAX_BYTES)
+MAX_ROWS = min(int(os.environ.get('MEDGUARD_MAX_ROWS', str(DEFAULT_MAX_ROWS))), DEFAULT_MAX_ROWS)
 SESSION_TTL_SECONDS = 60 * 60
 SESSION_ID = re.compile(r'^[A-Za-z0-9-]{16,64}$')
 PREVIEW_ROWS = 50
@@ -137,7 +140,7 @@ def _json_safe(df: pd.DataFrame) -> List[dict]:
 
 
 def _store(request: Request, name: str, source: str, data: bytes) -> dict:
-    validation, frame = validate_input(data)
+    validation, frame = validate_input(data, max_bytes=MAX_UPLOAD_BYTES, max_rows=MAX_ROWS)
     if frame is None:
         return {'accepted': False, 'name': name, 'validation': validation}
     dataset_id = dataset_fingerprint(frame)[:16]
@@ -259,7 +262,8 @@ def health():
           if public_mode() else llm.status())
     return {'ok': True, 'ai': ai, 'settings': DEFAULT_SETTINGS, 'widgets': planner.WIDGETS,
             'titles': insights.TITLES, 'missing_label': MISSING_LABEL,
-            'public': public_mode(), 'retention_minutes': SESSION_TTL_SECONDS // 60}
+            'public': public_mode(), 'retention_minutes': SESSION_TTL_SECONDS // 60,
+            'limits': {'max_upload_mb': MAX_UPLOAD_BYTES // (1024 * 1024), 'max_rows': MAX_ROWS}}
 
 
 @app.get('/api/demos')
@@ -278,8 +282,8 @@ def load_demo(name: str, request: Request):
 @app.post('/api/datasets/upload')
 async def upload(request: Request, filename: str = 'upload.csv'):
     declared = request.headers.get('content-length')
-    if declared and declared.isdigit() and int(declared) > DEFAULT_MAX_BYTES:
-        raise HTTPException(413, f'Files over {DEFAULT_MAX_BYTES // (1024 * 1024)} MB are not accepted.')
+    if declared and declared.isdigit() and int(declared) > MAX_UPLOAD_BYTES:
+        raise HTTPException(413, f'Files over {MAX_UPLOAD_BYTES // (1024 * 1024)} MB are not accepted.')
     data = await request.body()
     return _store(request, Path(filename).name or 'upload.csv', 'uploaded_csv', data)
 

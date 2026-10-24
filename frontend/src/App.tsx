@@ -190,7 +190,7 @@ export default function App() {
       {error && <div className="mx-auto max-w-[1500px] px-6 pt-4"><Note tone="warn">{error}</Note></div>}
       {step === 0 && <StartScreen idea={idea} setIdea={setIdea} demos={demos} dataset={dataset} loading={loading}
         onDemo={loadDemo} onUpload={upload} onPlan={makePlan} rejected={rejected}
-        publicDemo={!!health?.public} retentionMinutes={health?.retention_minutes} />}
+        publicDemo={!!health?.public} retentionMinutes={health?.retention_minutes} maxUploadMb={health?.limits?.max_upload_mb} />}
       {step === 1 && plan && dataset && <PlanScreen dataset={dataset} plan={plan} titles={health?.titles ?? {}} roles={roles} setRoles={setRoles}
         focus={focus} setFocus={setFocus} reference={reference} setReference={setReference} settings={settings} setSettings={setSettings}
         widgets={widgets} setWidgets={setWidgets} running={running} onRun={() => run(request())} />}

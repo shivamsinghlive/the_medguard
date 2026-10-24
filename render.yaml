@@ -1,0 +1,18 @@
+# Render Blueprint for the public MedGuard Explorer demo (free plan: 512 MB, sleeps when idle).
+services:
+  - type: web
+    name: medguard-explorer
+    runtime: docker
+    plan: free
+    branch: shivam/public-demo
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      # Smaller limits keep the free plan's memory safe; raise them on a paid plan.
+      - key: MEDGUARD_MAX_UPLOAD_MB
+        value: "10"
+      - key: MEDGUARD_MAX_ROWS
+        value: "50000"
+      - key: MEDGUARD_MAX_SESSIONS
+        value: "30"

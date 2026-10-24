@@ -22,12 +22,13 @@ type Props = {
   rejected: any
   publicDemo?: boolean
   retentionMinutes?: number
+  maxUploadMb?: number
 }
 
 const MIN_QUESTION = 6
 const pretty = (name: string) => name.replace(/\.csv$/, '').replace(/^dataset\d_/, '').replace(/_/g, ' ')
 
-export default function StartScreen({ idea, setIdea, demos, dataset, loading, onDemo, onUpload, onPlan, rejected, publicDemo, retentionMinutes = 60 }: Props) {
+export default function StartScreen({ idea, setIdea, demos, dataset, loading, onDemo, onUpload, onPlan, rejected, publicDemo, retentionMinutes = 60, maxUploadMb = 25 }: Props) {
   const [dragging, setDragging] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
   const set = (k: keyof Idea) => (e: any) => setIdea({ ...idea, [k]: e.target.value })
@@ -111,8 +112,8 @@ export default function StartScreen({ idea, setIdea, demos, dataset, loading, on
             <FileUp className="text-brand-500" />
             <span className="text-sm font-semibold text-ink-900">Drop a CSV here or click to choose</span>
             <span className="text-xs text-ink-500">{publicDemo
-              ? `UTF-8 CSV · up to 25 MB · synthetic or de-identified data only · held in server memory, deleted after ${retentionMinutes} min`
-              : 'UTF-8 CSV · up to 25 MB · stays on this computer'}</span>
+              ? `UTF-8 CSV · up to ${maxUploadMb} MB · synthetic or de-identified data only · held in server memory, deleted after ${retentionMinutes} min`
+              : `UTF-8 CSV · up to ${maxUploadMb} MB · stays on this computer`}</span>
             <input type="file" accept=".csv,text/csv" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) onUpload(f); e.target.value = '' }} />
           </label>
 
