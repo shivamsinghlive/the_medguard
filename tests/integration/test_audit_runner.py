@@ -12,7 +12,10 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src"))
 
-from services.audit_runner import finding_summary, report_csv, report_json, run_audit
+from services.audit_runner import (
+    finding_summary, report_csv, report_json, reviewed_copy_csv, run_audit,
+)
+from services.change_preview import preview_changes
 from services.input_validation import validate_input
 from utils.audit_input import dataset_fingerprint
 
@@ -138,3 +141,35 @@ def test_csv_export_includes_identifier_findings():
     privacy_rows = [row for row in rows if row["row_type"] == "identifier_finding"]
     assert [row["code"] for row in privacy_rows] == ["phone_pattern"]
     assert report["identifier_screening"]["certifies_deidentification"] is False
+
+
+def test_exports_include_change_preview_and_acceptance_state():
+    validation, frame = validate_input(b"sex,value\nF,10\nM,10\nM,10\n")
+    report = run_audit(frame, demographic_columns=["sex"], source_type="test",
+                       input_validation=validation)
+    preview, output = preview_changes(
+        frame,
+        [{"action": "drop_duplicate_rows"}],
+        column_roles={"sex": "demographic", "value": "feature"},
+    )
+    assert output is not None and len(output) == 2
+    report["change_preview"] = {**preview, "accepted_for_export": True}
+
+    encoded = json.loads(report_json(report))
+    assert encoded["change_preview"]["accepted_for_export"] is True
+    rows = list(csv.DictReader(io.StringIO(report_csv(report))))
+    change_rows = [row for row in rows if row["row_type"] == "change_action"]
+    assert len(change_rows) == 1
+    assert change_rows[0]["code"] == "drop_duplicate_rows"
+    assert change_rows[0]["status"] == "applied"
+    assert change_rows[0]["title"] == "Accepted preview action"
+    assert json.loads(change_rows[0]["summary"]) == {"rows_removed": 1}
+
+    reviewed_rows = list(csv.DictReader(io.StringIO(reviewed_copy_csv(output))))
+    assert [row["source_row_index"] for row in reviewed_rows] == ["0", "1"]
+
+
+def test_reviewed_copy_uses_collision_safe_source_index_header():
+    frame = pd.DataFrame({"source_row_index": ["existing"]}, index=[42])
+    rows = list(csv.DictReader(io.StringIO(reviewed_copy_csv(frame))))
+    assert rows == [{"_source_row_index": "42", "source_row_index": "existing"}]

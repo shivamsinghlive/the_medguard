@@ -18,7 +18,7 @@ No AI or network call exists in the active audit path. The guided demo and deter
 
 ## Why are automatic fixes disabled?
 
-Automatic balancing can change the meaning of a healthcare dataset and cannot establish improved model performance without held-out evaluation. The planned change service returns a separate preview, blocks protected roles by default, and leaves acceptance to the researcher.
+Automatic balancing can change the meaning of a healthcare dataset and cannot establish improved model performance without held-out evaluation. The change workflow returns a separate preview, excludes protected roles from UI targets, and requires the researcher to accept the result before exporting the reviewed copy.
 
 ## How do you know analysis did not mutate the data?
 
@@ -30,7 +30,7 @@ Validation rejects malformed CSV, non-UTF-8 or binary input, duplicate headers, 
 
 ## What is already real versus planned?
 
-Working now: structural validation, potential-identifier screening, descriptive quality evidence, representation evidence, source-preservation checks, and JSON/CSV export. Planned: a narrow safe-change preview, optional bounded explanations, and final independent release validation.
+Working now: structural validation, potential-identifier screening, descriptive quality evidence, representation evidence, source-preservation checks, reviewable change previews, explicit acceptance, and JSON/CSV export. Planned: optional bounded explanations and final independent release validation.
 
 ## What should happen before clinical use?
 
