@@ -60,7 +60,7 @@ If time allows, choose **Audit overview** and click **Generate optional explanat
 ## Before presenting
 
 - Start from `streamlit run src/ui/audit_workspace.py`.
-- Confirm the guided demo reports 1,200 rows.
+- Confirm the guided demo reports 1,031 rows.
 - Confirm all tests pass.
 - Keep one exported JSON report ready as a backup.
 - Rehearse with Wi-Fi disabled.

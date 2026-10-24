@@ -27,7 +27,7 @@ The [event overview](https://ds-x-hackathon-2026.devpost.com/) requests these it
 
 - [x] `main` contains Swathi W05 release validation (`7d3ad51`).
 - [x] `main` contains Shivam S04 optional AI (`c9545a9`).
-- [x] Guided demo renders 1,200 synthetic rows and 14 columns.
+- [x] Guided demo renders 1,031 synthetic rows and 17 columns.
 - [x] Browser rehearsal completed with Ollama unavailable on October 24, 2026. The explanation request timed out visibly and returned the deterministic fallback; the audit and exports remained available.
 - [x] No AI call occurs during page load or deterministic audit execution.
 - [x] Run `python -m pytest -q` on the release-polish branch: 243 passed on October 24, 2026.
@@ -56,7 +56,7 @@ Avoid these claims:
 ## Final five-minute check
 
 1. Open the guided demo from a clean session.
-2. Confirm 1,200 rows, 14 columns, `sex` selected, and two identifier signals.
+2. Confirm 1,031 rows, 17 columns, `sex` selected, and one identifier signal.
 3. Open cohort, identifier, and quality evidence.
 4. Generate and accept an exact-duplicate preview.
 5. Request the optional explanation with Ollama stopped and show the fallback.

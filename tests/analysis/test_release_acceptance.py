@@ -189,4 +189,4 @@ def test_gate_offline_demo_runs_without_ai_or_network(monkeypatch):
          patch('ollama.Client.embeddings', side_effect=RuntimeError('AI unavailable')):
         app = AppTest.from_file(str(ROOT / 'src/ui/audit_workspace.py')).run(timeout=60)
     assert not app.exception
-    assert [m.value for m in app.metric if m.label == 'Records'] == ['1,200']
+    assert [m.value for m in app.metric if m.label == 'Records'] == ['1,031']

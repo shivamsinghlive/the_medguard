@@ -4,7 +4,7 @@
 
 The visible workspace is backed by versioned, JSON-safe result contracts and deterministic services. Validation, screening, quality evidence, and representation analysis feed the same exportable audit record. The UI does not invent conclusions that are absent from those services.
 
-## Is a 73/27 demographic split biased?
+## Is a 68/32 demographic split biased?
 
 The split is an observed representation measurement. Whether it is appropriate depends on the intended population and study design. MedGuard reports counts, denominators, missingness, and an optional user-supplied comparison without applying an undocumented fairness threshold.
 
