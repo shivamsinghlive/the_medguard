@@ -7,7 +7,6 @@ import json
 import sys
 from pathlib import Path
 
-import altair as alt
 import pandas as pd
 import streamlit as st
 
@@ -25,6 +24,19 @@ from agents.audit_explainer import (
 from services.change_preview import preview_changes
 from services.contracts import ChangePreviewError, RepresentationInputError
 from services.input_validation import validate_input
+from ui.visuals import (
+    PLOTLY_CONFIG,
+    build_mosaic_payload,
+    completeness_donut,
+    cohort_distribution_donut,
+    cohort_dumbbell,
+    missingness_bars,
+    render_change_map,
+    render_dataset_mosaic,
+    render_identifier_coverage,
+    render_status_strip,
+    render_waffle,
+)
 
 
 DEMO_PATH = PROJECT_DIR / "data/synthetic/dataset2_diabetes_gender_bias.csv"
@@ -94,18 +106,23 @@ st.markdown(
     """
     <style>
     :root {
-      --mg-night: #0b1f2a; --mg-ink: #17323d; --mg-muted: #58707a;
-      --mg-teal: #087f78; --mg-teal-bright: #43c6b5; --mg-teal-soft: #e7f6f3;
-      --mg-coral: #d66b4b; --mg-coral-soft: #fff0ea; --mg-amber: #91610b;
-      --mg-amber-soft: #fff7df; --mg-surface: #fbfdfc; --mg-border: #d9e6e2;
+      --mg-night: #1A2340; --mg-ink: #1A2340; --mg-muted: #4E5874;
+      --mg-teal: #13B5A6; --mg-teal-bright: #13B5A6; --mg-teal-soft: #DDF6F3;
+      --mg-coral: #FF8A3D; --mg-coral-soft: #FFEBDD; --mg-amber: #8A3A05;
+      --mg-amber-soft: #FFEBDD; --mg-surface: #FFFFFF; --mg-border: #DDE2EE;
+      --mg-cobalt: #2F5BFF; --mg-cobalt-soft: #E6ECFF;
     }
     html { scroll-behavior: smooth; }
+    html, body, [class*="css"] { font-family: "Instrument Sans", system-ui, sans-serif; }
+    body { font-variant-numeric: tabular-nums; }
     .stApp { background:
       radial-gradient(circle at 82% 4%, rgba(88,101,242,.13), transparent 28rem),
       radial-gradient(circle at 8% 34%, rgba(26,211,190,.10), transparent 24rem),
-      linear-gradient(180deg, #f7f9ff 0%, #f4fbfa 46%, #f8fafc 100%); }
+      linear-gradient(180deg, #F4F6FB 0%, #F4F6FB 100%); }
     .block-container { max-width: 1240px; padding-top: 1.35rem; padding-bottom: 5rem; }
-    h1, h2, h3 { color: var(--mg-ink); letter-spacing: -0.035em; }
+    h1, h2, h3, .mg-section-title, .mg-title, [data-testid="stMetricValue"] {
+      color: var(--mg-ink); font-family: "Bricolage Grotesque", system-ui, sans-serif;
+      letter-spacing: -0.035em; }
     p, li, label { color: var(--mg-muted); }
     #MainMenu, footer, [data-testid="stToolbar"] { visibility: hidden; }
     header[data-testid="stHeader"] { background: transparent; }
@@ -281,6 +298,23 @@ st.markdown(
       html { scroll-behavior: auto; } .mg-orbit-ring.r2 { animation: none; }
       .mg-source-card, .stButton > button, .stDownloadButton > button { transition: none; }
     }
+    @media (prefers-color-scheme: dark) {
+      :root { --mg-night:#0F1424; --mg-ink:#EEF1FA; --mg-muted:#AEB6CC;
+        --mg-teal:#2FD1C1; --mg-teal-bright:#2FD1C1; --mg-teal-soft:#193C40;
+        --mg-coral:#FF9D5C; --mg-coral-soft:#4B2B24; --mg-amber:#FFC9A3;
+        --mg-amber-soft:#4B2B24; --mg-surface:#171E33; --mg-border:#29324B;
+        --mg-cobalt:#6F8DFF; --mg-cobalt-soft:#27365F; }
+      .stApp { background:#0F1424; }
+      [data-testid="stSidebar"] { background:#171E33; border-color:#29324B; }
+      .mg-card,.mg-status,.mg-review-queue,.mg-source-card,[data-testid="stMetric"],
+      [data-baseweb="select"] > div { background:#171E33; border-color:#29324B; }
+      .mg-note { background:#193C40; border-color:#2F716D; color:#BEEDE7; }
+      .mg-warning { background:#4B2B24; border-color:#74422E; color:#FFC9A3; }
+      .mg-empty { background:#171E33; border-color:#3B4662; color:#AEB6CC; }
+      .mg-export,.mg-preview,.mg-explanation { background:#171E33; border-color:#29324B; }
+      .stTabs [data-baseweb="tab-list"] { background:#1E2640; }
+      .stTabs [aria-selected="true"] { background:#29324B; color:#EEF1FA; }
+    }
     @media (max-width: 700px) {
       .block-container { padding: .8rem .8rem 3rem; }
       .mg-hero { padding: 1.6rem 1.25rem; border-radius: 18px; }
@@ -319,9 +353,17 @@ def priority_card(finding: dict) -> None:
     )
 
 
-def reference_for_demo(enabled: bool, columns: list[str]) -> dict | None:
+def reference_for_demo(
+    enabled: bool,
+    columns: list[str],
+    frame: pd.DataFrame,
+    first_share_percent: int,
+) -> dict | None:
     if enabled and "sex" in columns:
-        return {"sex": {"Male": 0.5, "Female": 0.5}}
+        labels = frame["sex"].dropna().value_counts().index.tolist()
+        if len(labels) == 2:
+            first_share = first_share_percent / 100
+            return {"sex": {labels[0]: first_share, labels[1]: 1 - first_share}}
     return None
 
 
@@ -334,23 +376,6 @@ def clear_change_state() -> None:
     ):
         st.session_state.pop(key, None)
     st.session_state["selected_change_actions"] = []
-
-
-def style_chart(chart):
-    """Apply the workspace's accessible light chart treatment."""
-
-    return (
-        chart.configure(background="transparent")
-        .configure_view(strokeOpacity=0)
-        .configure_axis(
-            domain=False,
-            gridColor="#e8edf5",
-            labelColor="#526775",
-            titleColor="#526775",
-            tickColor="#d8e0eb",
-        )
-        .configure_legend(labelColor="#526775", symbolType="circle")
-    )
 
 
 with st.sidebar:
@@ -460,7 +485,7 @@ if validation["warnings"]:
     for warning in validation["warnings"]:
         st.warning(warning["message"])
 st.caption(
-    f"✓ Input accepted · {validation['byte_count']:,} bytes · {validation['row_count']:,} rows · "
+    f"Input accepted · {validation['byte_count']:,} bytes · {validation['row_count']:,} rows · "
     f"{validation['column_count']:,} columns"
 )
 
@@ -533,21 +558,40 @@ if prediction_column != "Not selected":
     column_roles[prediction_column] = "prediction"
 
 use_demo_reference = False
+reference_first_share = 50
 if source == "Guided demo" and "sex" in demographic_columns:
     use_demo_reference = st.checkbox(
-        "Compare `sex` with an illustrative 50/50 reference",
+        "Compare `sex` with a reference",
         value=False,
         help=(
             "This optional reference is supplied only for the guided demo. A percentage-point "
             "difference is descriptive and does not trigger a universal cutoff."
         ),
     )
+    if use_demo_reference:
+        recorded_labels = data["sex"].dropna().value_counts().index.tolist()
+        if len(recorded_labels) == 2:
+            reference_first_share = st.slider(
+                f"Reference share for {recorded_labels[0]} (%)",
+                min_value=0,
+                max_value=100,
+                value=50,
+                help=(
+                    f"The remaining share is assigned to {recorded_labels[1]}. Labels remain "
+                    "exactly as recorded."
+                ),
+            )
 
 try:
     report = run_audit(
         data,
         demographic_columns=demographic_columns,
-        reference_proportions=reference_for_demo(use_demo_reference, demographic_columns),
+        reference_proportions=reference_for_demo(
+            use_demo_reference,
+            demographic_columns,
+            data,
+            reference_first_share,
+        ),
         source_type=source_type,
         input_validation=validation,
     )
@@ -558,6 +602,35 @@ except RepresentationInputError as error:
 representation = report["representation"]
 quality = report["quality"]
 screening = report["identifier_screening"]
+
+st.markdown(
+    '<div class="mg-section"><div><div class="mg-section-kicker">Measured at a glance</div>'
+    '<div class="mg-section-title">Audit status</div></div>'
+    '<div class="mg-section-copy">Status words come directly from the audit contract. '
+    'They organize review and do not certify safety or fairness.</div></div>',
+    unsafe_allow_html=True,
+)
+render_status_strip(report)
+
+missing_focus_options = ["All columns"] + list(quality["missing_by_column"])
+missing_focus = st.selectbox(
+    "Missing-values mosaic focus",
+    missing_focus_options,
+    help="This selector filters the missing-values lens without changing the audit.",
+)
+st.markdown(
+    '<div class="mg-section"><div><div class="mg-section-kicker">Interactive row map</div>'
+    '<div class="mg-section-title">Explore measured row flags</div></div>'
+    '<div class="mg-section-copy">Each square carries aggregate row flags only. '
+    'No raw record is copied into the component.</div></div>',
+    unsafe_allow_html=True,
+)
+render_dataset_mosaic(
+    data,
+    report,
+    demographic_column=demographic_columns[0] if demographic_columns else None,
+    selected_missing_column=None if missing_focus == "All columns" else missing_focus,
+)
 
 st.markdown('<div id="review-evidence"></div>', unsafe_allow_html=True)
 st.markdown(
@@ -626,42 +699,17 @@ with overview_tab:
         with st.container(border=True):
             if representation["attributes"] and representation["attributes"][0]["groups"]:
                 pulse_attribute = representation["attributes"][0]
-                cohort_chart_data = pd.DataFrame(
-                    [
-                        {"Group": group["label"], "Records": group["count"]}
-                        for group in pulse_attribute["groups"]
-                    ]
-                )
                 largest_group = max(pulse_attribute["groups"], key=lambda group: group["count"])
                 st.markdown(f"**{pulse_attribute['column']} · observed distribution**")
                 st.caption(
                     f"Largest recorded group: {largest_group['label']} · "
                     f"{largest_group['proportion']:.1%}."
                 )
-                cohort_arc = (
-                    alt.Chart(cohort_chart_data)
-                    .mark_arc(innerRadius=58, outerRadius=90, cornerRadius=7, padAngle=0.025)
-                    .encode(
-                        theta=alt.Theta("Records:Q", stack=True),
-                        color=alt.Color(
-                            "Group:N",
-                            scale=alt.Scale(range=["#19bfae", "#665be7", "#f17965", "#f1b84b"]),
-                            legend=alt.Legend(orient="bottom", title=None, columns=1),
-                        ),
-                        tooltip=["Group:N", alt.Tooltip("Records:Q", format=",")],
-                    )
-                    .properties(height=230)
+                st.plotly_chart(
+                    cohort_distribution_donut(pulse_attribute),
+                    use_container_width=True,
+                    config=PLOTLY_CONFIG,
                 )
-                cohort_center = (
-                    alt.Chart(
-                        pd.DataFrame(
-                            {"label": [f"{largest_group['proportion']:.0%}"]}
-                        )
-                    )
-                    .mark_text(fontSize=25, fontWeight=800, color="#24394a")
-                    .encode(text="label:N")
-                )
-                st.altair_chart(style_chart(cohort_arc + cohort_center), use_container_width=True)
             else:
                 st.markdown("**Cohort distribution**")
                 st.caption("Choose a demographic column to reveal the observed composition.")
@@ -671,37 +719,15 @@ with overview_tab:
             total_cells = max(report["dataset"]["row_count"] * report["dataset"]["column_count"], 1)
             observed_cells = max(total_cells - quality["missing_cells"], 0)
             observed_percent = observed_cells / total_cells * 100
-            completeness_data = pd.DataFrame(
-                {
-                    "Cell state": ["Observed", "Missing"],
-                    "Cells": [observed_cells, quality["missing_cells"]],
-                }
-            )
             st.markdown("**Cell coverage · measured completeness**")
             st.caption(f"{observed_percent:.1f}% of cells contain a value.")
-            completeness_arc = (
-                alt.Chart(completeness_data)
-                .mark_arc(innerRadius=58, outerRadius=90, cornerRadius=7, padAngle=0.025)
-                .encode(
-                    theta=alt.Theta("Cells:Q", stack=True),
-                    color=alt.Color(
-                        "Cell state:N",
-                        scale=alt.Scale(
-                            domain=["Observed", "Missing"], range=["#665be7", "#e6eaf2"]
-                        ),
-                        legend=alt.Legend(orient="bottom", title=None),
-                    ),
-                    tooltip=["Cell state:N", alt.Tooltip("Cells:Q", format=",")],
-                )
-                .properties(height=230)
-            )
-            completeness_center = (
-                alt.Chart(pd.DataFrame({"label": [f"{observed_percent:.0f}%"]}))
-                .mark_text(fontSize=25, fontWeight=800, color="#24394a")
-                .encode(text="label:N")
-            )
-            st.altair_chart(
-                style_chart(completeness_arc + completeness_center), use_container_width=True
+            st.plotly_chart(
+                completeness_donut(
+                    total_cells=total_cells,
+                    missing_cells=quality["missing_cells"],
+                ),
+                use_container_width=True,
+                config=PLOTLY_CONFIG,
             )
     if representation["findings"]:
         st.markdown("### What needs review")
@@ -747,61 +773,16 @@ with cohorts_tab:
                 }
             )
         table = pd.DataFrame(rows)
-        chart_values = pd.DataFrame(
-            [
-                {
-                    "Group": group["label"],
-                    "Observed share (%)": (
-                        round(group["proportion"] * 100, 1)
-                        if group["proportion"] is not None else 0
-                    ),
-                    "Reference share (%)": (
-                        round(group["reference_proportion"] * 100, 1)
-                        if group["reference_proportion"] is not None else None
-                    ),
-                }
-                for group in attribute["groups"]
-            ]
-        )
-        chart_col, table_col = st.columns([0.85, 1.15])
+        chart_col, table_col = st.columns([1.05, 0.95])
         with chart_col:
-            cohort_bars = (
-                alt.Chart(chart_values)
-                .mark_bar(cornerRadiusEnd=9, height=24)
-                .encode(
-                    x=alt.X(
-                        "Observed share (%):Q",
-                        scale=alt.Scale(domain=[0, 100]),
-                        axis=alt.Axis(title="Observed share", format=".0f", grid=False),
-                    ),
-                    y=alt.Y("Group:N", sort="-x", title=None),
-                    color=alt.Color(
-                        "Group:N",
-                        scale=alt.Scale(range=["#19bfae", "#665be7", "#f17965", "#f1b84b"]),
-                        legend=None,
-                    ),
-                    tooltip=[
-                        "Group:N",
-                        alt.Tooltip("Observed share (%):Q", format=".1f"),
-                        alt.Tooltip("Reference share (%):Q", format=".1f"),
-                    ],
-                )
-            )
-            cohort_labels = (
-                alt.Chart(chart_values)
-                .mark_text(align="left", baseline="middle", dx=6, color="#273746", fontWeight=700)
-                .encode(
-                    x="Observed share (%):Q",
-                    y=alt.Y("Group:N", sort="-x"),
-                    text=alt.Text("Observed share (%):Q", format=".1f"),
-                )
-            )
-            st.altair_chart(
-                style_chart((cohort_bars + cohort_labels).properties(height=245)),
+            st.plotly_chart(
+                cohort_dumbbell(attribute),
                 use_container_width=True,
+                config=PLOTLY_CONFIG,
             )
         with table_col:
             st.dataframe(table, use_container_width=True, hide_index=True)
+        render_waffle(attribute)
         st.caption(
             f"Denominator: {attribute['observed_count']:,} nonmissing values. "
             f"Missing values: {attribute['missing_count']:,}."
@@ -811,6 +792,7 @@ with cohorts_tab:
 
 with privacy_tab:
     st.markdown("### Potential identifier screening")
+    render_identifier_coverage(screening)
     st.markdown(
         '<div class="mg-warning"><strong>This is a screening result, not privacy clearance.</strong> '
         'A result with no listed patterns does not establish HIPAA de-identification.</div>',
@@ -831,40 +813,36 @@ with privacy_tab:
             priority_card(finding)
     else:
         st.info("None of the listed identifier patterns matched in the reported coverage.")
-    with st.expander("Scope and limitations"):
-        for limitation in screening["limitations"]:
-            st.write(f"- {limitation}")
+    st.markdown("#### Screening limitations")
+    for limitation in screening["limitations"]:
+        st.write(f"- {limitation}")
     with st.expander("Measured screening result"):
         st.json(screening)
 
 with quality_tab:
-    quality_cols = st.columns(3)
+    quality_cols = st.columns(4)
     quality_cols[0].metric("Missing cells", f"{quality['missing_cells']:,}")
-    quality_cols[1].metric("Columns with missing data", quality["columns_with_missing_values"])
-    quality_cols[2].metric("Rows in duplicate sets", quality["duplicate_rows"])
+    quality_cols[1].metric("Rows with a gap", f"{int(data.isna().any(axis=1).sum()):,}")
+    quality_cols[2].metric("Exact duplicate rows", quality["duplicate_rows"])
+    quality_cols[3].metric("Columns checked", report["dataset"]["column_count"])
     if quality["missing_by_column"]:
         missing_chart_data = pd.DataFrame(
             [
-                {"Column": column, "Missing values": count}
+                {
+                    "Column": column,
+                    "Missing values": count,
+                    "Missing share": f"{count / max(len(data), 1):.1%}",
+                    "Role": column_roles.get(column, "feature"),
+                    "Protected": "protected" if column_roles.get(column) != "feature" else "",
+                }
                 for column, count in quality["missing_by_column"].items()
             ]
         )
-        missing_chart = (
-            alt.Chart(missing_chart_data)
-            .mark_bar(cornerRadiusEnd=8, height=18)
-            .encode(
-                x=alt.X("Missing values:Q", title="Missing cells", axis=alt.Axis(grid=False)),
-                y=alt.Y("Column:N", sort="-x", title=None),
-                color=alt.Color(
-                    "Missing values:Q",
-                    scale=alt.Scale(range=["#28c7b4", "#665be7"]),
-                    legend=None,
-                ),
-                tooltip=["Column:N", alt.Tooltip("Missing values:Q", format=",")],
-            )
-            .properties(height=max(180, min(380, len(missing_chart_data) * 34)))
+        st.plotly_chart(
+            missingness_bars(quality["missing_by_column"], len(data)),
+            use_container_width=True,
+            config=PLOTLY_CONFIG,
         )
-        st.altair_chart(style_chart(missing_chart), use_container_width=True)
         with st.expander("View missingness table"):
             st.dataframe(missing_chart_data, use_container_width=True, hide_index=True)
     else:
@@ -1131,6 +1109,17 @@ if preview_result and preview_current:
             )
         else:
             copy_col.caption("Accept the preview to enable the separate output download.")
+
+render_change_map(
+    data,
+    source_fingerprint=report["dataset"]["fingerprint"],
+    preview_result=preview_result if preview_current else None,
+    preview_frame=preview_frame if preview_current else None,
+    protected_roles={
+        column: role for column, role in column_roles.items() if role != "feature"
+    },
+    accepted=accepted,
+)
 
 export_report = dict(report)
 if preview_result and preview_current:

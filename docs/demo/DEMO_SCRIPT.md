@@ -16,33 +16,40 @@ Keep **Guided demo** selected. Explain that it is a bundled synthetic cohort. Sh
 
 Mention the bounded first-release limits: 25 MB, 200,000 rows, and 500 columns.
 
-## 0:55-1:35 - Representation without a verdict
+## 0:55-1:35 - Interactive evidence without a verdict
 
-Keep `sex` selected as the demographic column. Open **Cohort evidence** and show the observed shares and nonmissing denominator.
+Keep `sex` selected as the demographic column. Point to **Audit status**, then use the
+**Explore measured row flags** mosaic to switch between cohort, missing-values, duplicate,
+and identifier-screening lenses. Open **Cohort evidence** and show the observed shares,
+100-square view, and nonmissing denominator.
 
 > MedGuard preserves recorded labels. It never silently turns a code such as 1 into a demographic category. Without a supplied reference, this is descriptive evidence.
 
-Enable the illustrative 50/50 reference.
+Enable **Compare `sex` with a reference** and leave the slider at 50%.
 
 > The percentage-point difference is calculated, but MedGuard does not invent a universal threshold or call the dataset fair or biased.
 
 ## 1:35-2:10 - Privacy honesty
 
-Open **Identifier screening**. Show coverage, matched signals, and limitations.
+Open **Identifier screening**. Show the animated coverage ring, scanned-column sequence,
+matched signals, and the always-visible limitations.
 
 > This is deliberately called screening. It detects potential identifiers using documented heuristics, reports exactly how much it scanned, and always states that it does not certify de-identification.
 
 ## 2:10-2:35 - Reviewable evidence
 
-Open **Data quality** and then download the JSON report.
+Open **Data quality**, show the measured count tiles and missingness view, and then download
+the JSON report.
 
 > The interface and export share the same deterministic result. A reviewer can inspect counts, findings, limitations, coverage, and the dataset fingerprint without relying on an AI-generated conclusion.
 
 ## 2:35-3:00 - Close
 
-Scroll to **Changes to the dataset**.
+Scroll to **Preview supported changes**.
 
-Select **Remove exact duplicate rows** and generate the preview. Show the before/after counts, action evidence, and limitations, then accept it for export.
+Select **Remove exact duplicate rows** and generate the preview. Show the row map, source and
+copy fingerprint identicons, ledger counts, action evidence, and limitations, then accept it
+for export and point to the **ready to export** stamp.
 
 > MedGuard creates a separate reviewed copy and keeps the audited source unchanged. Demographics, outcomes, predictions, and identifiers are excluded from change targets. Automatic balancing and SMOTE remain unavailable because a cleaning action does not establish improved fairness or model performance.
 
