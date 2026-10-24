@@ -38,8 +38,9 @@ matched signals, and the always-visible limitations.
 
 ## 2:10-2:35 - Reviewable evidence
 
-Open **Data quality**, show the measured count tiles and missingness view, and then download
-the JSON report.
+Open **Data quality** and show the measured count tiles and missingness view. Set
+**Missing-values focus** to `hba1c`: the mosaic opens on the missing-values lens for that column
+and the column is highlighted in the missingness view. Then download the JSON report.
 
 > The interface and export share the same deterministic result. A reviewer can inspect counts, findings, limitations, coverage, and the dataset fingerprint without relying on an AI-generated conclusion.
 
