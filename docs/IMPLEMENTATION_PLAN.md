@@ -19,7 +19,7 @@ Baseline audit: `DSX_AUDIT.md`. That document describes the initial state; use t
 - [x] 1. Audit original data; remove replacement-data generation from the main workflow.
 - [x] 2a. Remove independent synthetic generation from the audit path. Standalone generator remains unvalidated.
 - [ ] 2b. Decide whether to retain or retire the separate synthetic generator; validate it if retained.
-- [ ] 3. Remove invented harm and accuracy estimates from prompts, schemas, fallbacks, and UI.
+- [x] 3. Remove invented structured harm and accuracy estimates from prompts, schemas, fallbacks, and UI. Free-text AI suggestions remain unverified.
 - [ ] 4. Replace false FAIR verdicts with scoped representation findings and insufficient-evidence states.
 - [ ] 5. Explicit column roles, category mappings, reference populations, support, and uncertainty.
 - [ ] 6. Improve identifier-screening coverage and document its limits.
@@ -46,3 +46,11 @@ Baseline audit: `DSX_AUDIT.md`. That document describes the initial state; use t
 Coverage: stable fingerprints distinguish changed values/schema/order; Demo 1 analyzes source row counts, duplicates, and missingness; unchanged reruns retain measurements; dataset changes invalidate modified-data and recommendation state; an all-missing column renders without requiring generated code. AI is deliberately unavailable in UI tests. No model claims are validated by these tests.
 
 The original synthetic demo CSVs remain supported as input datasets. They are analyzed as supplied, without generating a second dataset. Existing transformation and fairness defects remain open and must not be presented as resolved.
+
+## Step 2 acceptance evidence
+
+`python -m pytest -q tests`
+
+The fairness schema accepts only null performance/harm numbers and an explicit unavailable status. It rejects invented values (including zero), annual-impact claims, and accuracy promises. Invalid or unavailable AI output returns the same unavailable fallback. The dashboard renders explicit unknown states without numerical deltas. README examples no longer claim quantified harm or expected accuracy gains.
+
+This change does not add model evaluation or clinical validation, validate arbitrary AI prose, or fix recruitment estimates and representation thresholds. Those remain separate backlog items.

@@ -8,6 +8,10 @@
 
 ---
 
+> **Implementation status:** The active dashboard audits original records. Performance gaps,
+> patient harm, and accuracy improvements are not measured. Other legacy privacy and fairness
+> claims below are under review; see [the implementation backlog](docs/IMPLEMENTATION_PLAN.md).
+
 ## 📋 Overview
 
 MedGuard AI is an intelligent healthcare data quality and fairness auditor that detects data quality issues and demographic bias **before** AI models are trained, preventing biased algorithms from harming patients.
@@ -33,7 +37,7 @@ MedGuard AI is an intelligent healthcare data quality and fairness auditor that 
 
 ### **3. Exact Quantification (Not Vague Advice)**
 - "Recruit 552 female patients" (not "get more data")
-- "11 out of 100 women misdiagnosed" (not "some bias")
+- Model performance and patient harm are **not measured** from dataset representation.
 - "$60,000 recruitment cost, 6-month timeline" (not "expensive, takes time")
 
 ### **4. Three-Layer HIPAA Compliance**
@@ -175,7 +179,7 @@ Healthcare datasets contain missing values, duplicates, outliers that are often 
 ### **Problem 2: Hidden Bias Leads to Unfair AI**
 Demographic bias (gender, race, age, socioeconomic) in training data causes AI models to perform poorly for underrepresented groups, perpetuating healthcare disparities.
 
-**Our Solution:** Detects ALL bias types (not just gender/race), quantifies exact harm, provides specific recruitment strategies.
+**Our Solution:** Detects ALL bias types (not just gender/race), reports representation gaps, provides specific recruitment strategies.
 
 ---
 
@@ -198,9 +202,9 @@ Demographic bias (gender, race, age, socioeconomic) in training data causes AI m
 - "60-day timeline too short for recruitment → use SMOTE + plan 6-month retrain"
 
 ### **4. Exact Quantification**
-- Not "you have bias" → "11 out of 100 women will be misdiagnosed"
+- Report observed representation; do not infer misdiagnoses or patient harm.
 - Not "collect data" → "Recruit 552 female patients from Brigham Women's Hospital, $60K, 6 months"
-- Not "use SMOTE" → Shows exact Python code with expected accuracy improvement
+- Suggested transformations require held-out evaluation; accuracy improvements are not established.
 
 ---
 

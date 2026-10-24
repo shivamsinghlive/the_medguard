@@ -1,10 +1,10 @@
 """
-Fairness Specialist Agent - Provides exact, quantified bias mitigation strategies
-Uses Instructor to enforce specific, actionable recommendations
+Fairness Specialist Agent - Suggestions based on dataset representation.
+Performance and patient harm are not measured by this workflow.
 """
 
 import ollama
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Dict, List, Literal, Optional
 import json
 import re
@@ -15,7 +15,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 
 # ============================================================================
-# INSTRUCTOR SCHEMAS - Force Exact, Quantified Recommendations
+# OUTPUT SCHEMAS - Keep unmeasured outcomes explicitly unavailable
 # ============================================================================
 
 class RecruitmentPlan(BaseModel):
@@ -56,11 +56,10 @@ class TechnicalMitigation(BaseModel):
         description="Working Python code to implement"
     )
     
-    expected_improvement: str = Field(
-        max_length=150,
-        description="Expected accuracy improvement with numbers"
-    )
-    
+    expected_improvement: Literal[
+        "Not measured. Evaluate on held-out data before claiming improvement."
+    ] = "Not measured. Evaluate on held-out data before claiming improvement."
+
     limitations: str = Field(
         max_length=200,
         description="What this method cannot solve"
@@ -68,29 +67,19 @@ class TechnicalMitigation(BaseModel):
 
 
 class HarmQuantification(BaseModel):
-    """Schema for quantifying predicted harm"""
-    
-    performance_gap_percentage: float = Field(
-        ge=0,
-        le=100,
-        description="Percentage difference in model performance"
-    )
-    
-    patients_affected_per_100: int = Field(
-        ge=0,
-        le=100,
-        description="Out of 100 patients with condition, how many affected"
-    )
-    
-    clinical_consequence: str = Field(
-        max_length=250,
-        description="Real-world impact on patient care"
-    )
-    
-    annual_impact_estimate: Optional[str] = Field(
-        default=None,
-        description="Yearly impact if deployed at scale"
-    )
+    """This workflow accepts no predictions or clinical-impact evidence.
+
+    Null means unavailable, never zero harm. Reject supplied numbers instead of
+    rounding or clamping invented values into a plausible-looking measurement.
+    """
+    model_config = ConfigDict(extra='forbid')
+    status: Literal["not_measured"] = "not_measured"
+    performance_gap_percentage: None = None
+    patients_affected_per_100: None = None
+    annual_impact_estimate: None = None
+    clinical_consequence: Literal[
+        "Not assessed. Dataset representation alone does not establish clinical harm."
+    ] = "Not assessed. Dataset representation alone does not establish clinical harm."
 
 
 class FairnessRecommendationSchema(BaseModel):
@@ -114,7 +103,7 @@ class FairnessRecommendationSchema(BaseModel):
         description="Exact number of additional samples per group"
     )
     
-    predicted_harm: HarmQuantification
+    predicted_harm: HarmQuantification = Field(default_factory=HarmQuantification)
     
     recruitment_plan: RecruitmentPlan
     
@@ -159,7 +148,11 @@ class FairnessSpecialist:
         
         # Build prompt with ALL context
         prompt = f"""
-You are a healthcare fairness expert. Provide SPECIFIC, QUANTIFIED recommendations.
+You are a dataset representation reviewer. Suggest actions grounded in the provided statistics.
+This workflow has no held-out predictions, model evaluation, or clinical-impact evidence.
+Do not infer performance gaps, misdiagnoses, affected-patient counts, annual harm,
+or accuracy improvements from representation. Do not include such claims in ANY
+free-text field. Unknown is not zero. Return the fixed unavailable fields below.
 
 DETECTED BIAS:
 - Type: {bias_info.get('type', 'demographic_imbalance')}
@@ -187,10 +180,11 @@ Provide response as valid JSON matching this EXACT structure:
   "exact_samples_needed": {{"Female": 552}},
   
   "predicted_harm": {{
-    "performance_gap_percentage": 11.0,
-    "patients_affected_per_100": 11,
-    "clinical_consequence": "Specific consequence...",
-    "annual_impact_estimate": "At X-bed hospital, Y patients affected"
+    "status": "not_measured",
+    "performance_gap_percentage": null,
+    "patients_affected_per_100": null,
+    "clinical_consequence": "Not assessed. Dataset representation alone does not establish clinical harm.",
+    "annual_impact_estimate": null
   }},
   
   "recruitment_plan": {{
@@ -203,7 +197,7 @@ Provide response as valid JSON matching this EXACT structure:
   "immediate_technical_fix": {{
     "method": "SMOTE",
     "python_code": "from imblearn.over_sampling import SMOTE\\nsmote = SMOTE()\\nX_res, y_res = smote.fit_resample(X, y)",
-    "expected_improvement": "Women accuracy: 71% → 84%",
+    "expected_improvement": "Not measured. Evaluate on held-out data before claiming improvement.",
     "limitations": "Synthetic data may not capture all real-world variation. SMOTE creates synthetic samples based on existing patterns, which may not fully represent true demographic diversity."
   }},
   
@@ -218,7 +212,7 @@ CRITICAL RULES:
 - Cost estimates should be reasonable ($20K-$100K range)
 - Give SPECIFIC python code that works
 - Explain why recommendation fits user's constraints
-- IMPORTANT: patients_affected_per_100 must be an INTEGER 0-100 (not a float like 6.5 or 32.75). Use whole numbers like 6, 33, 11.
+- Leave harm and performance estimates null. Preserve the fixed not-measured messages.
 
 CRITICAL JSON FORMAT REQUIREMENTS:
 - Use double quotes for all strings (not single quotes)
@@ -274,17 +268,7 @@ Respond with ONLY valid JSON, no other text. Start with {{ and end with }}.
                     print(f"   Problematic JSON snippet: {response_text[max(0, json_err.pos-50):json_err.pos+50]}")
                     raise json_err
             
-            # Sanitize patients_affected_per_100: convert floats to ints, ensure 0-100
-            if 'predicted_harm' in result and 'patients_affected_per_100' in result['predicted_harm']:
-                patients = result['predicted_harm']['patients_affected_per_100']
-                if patients is not None:
-                    # Convert float to int (round)
-                    if isinstance(patients, float):
-                        patients = int(round(patients))
-                    # Ensure within valid range
-                    patients = max(0, min(100, patients))
-                    result['predicted_harm']['patients_affected_per_100'] = patients
-            
+            # Schema rejection sends unsupported measurements to the unavailable fallback.
             validated = FairnessRecommendationSchema(**result)
             
             print("✅ Structured fairness recommendation generated")
@@ -316,13 +300,8 @@ Respond with ONLY valid JSON, no other text. Start with {{ and end with }}.
             target_distribution={"balanced": 50.0},
             exact_samples_needed={minority_group: samples_needed},
             
-            predicted_harm=HarmQuantification(
-                performance_gap_percentage=10.0,
-                patients_affected_per_100=10,
-                clinical_consequence=f"Model may be less accurate for {minority_group} patients",
-                annual_impact_estimate="Significant impact on underrepresented populations"
-            ),
-            
+            predicted_harm=HarmQuantification(),
+
             recruitment_plan=RecruitmentPlan(
                 target_facilities=[
                     f"Community health centers serving {minority_group} populations",
@@ -335,7 +314,7 @@ Respond with ONLY valid JSON, no other text. Start with {{ and end with }}.
             immediate_technical_fix=TechnicalMitigation(
                 method="SMOTE",
                 python_code="from imblearn.over_sampling import SMOTE\nsmote = SMOTE(random_state=42)\nX_balanced, y_balanced = smote.fit_resample(X, y)",
-                expected_improvement=f"Balance dataset to include more {minority_group} samples",
+                expected_improvement="Not measured. Evaluate on held-out data before claiming improvement.",
                 limitations="Synthetic data may not capture all real-world variation"
             ),
             
@@ -403,9 +382,7 @@ if __name__ == "__main__":
     for group, count in recommendation.exact_samples_needed.items():
         print(f"  • {group}: {count} additional patients")
     
-    print(f"\n🚨 Predicted Harm:")
-    print(f"  • Performance gap: {recommendation.predicted_harm.performance_gap_percentage}%")
-    print(f"  • Patients affected: {recommendation.predicted_harm.patients_affected_per_100} per 100")
+    print("\nPerformance and clinical impact: not measured")
     print(f"  • Clinical consequence: {recommendation.predicted_harm.clinical_consequence}")
     
     print(f"\n🏥 Recruitment Plan:")
@@ -423,4 +400,4 @@ if __name__ == "__main__":
     print(f"\n💡 Priority: {recommendation.recommendation_priority}")
     
     print("\n✅ Fairness Specialist test complete!")
-    print("   All outputs validated by schema - no hallucination possible!")
+    print("   Output structure validated; free-text suggestions still require review.")

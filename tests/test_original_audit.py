@@ -58,6 +58,11 @@ def test_demo_audits_original_records_and_keeps_results_on_rerun(monkeypatch):
         assert 'stale_column' not in app.session_state['fairness_recommendations']
         second = pd.read_csv(ROOT / 'data/synthetic/dataset2_diabetes_gender_bias.csv')
         assert app.session_state['analysis_hash'] == dataset_fingerprint(second)
+        performance = [m for m in app.metric if m.label == 'Performance Gap']
+        patients = [m for m in app.metric if m.label == 'Patients Affected']
+        assert performance and all(m.value == 'Not measured' for m in performance)
+        assert patients and all(m.value == 'Not assessed' for m in patients)
+        assert all(not m.delta for m in performance + patients)
 
 
 def test_empty_column_renders_without_code_recommendation(monkeypatch):
