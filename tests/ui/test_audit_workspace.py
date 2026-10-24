@@ -10,6 +10,8 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src"))
 APP = ROOT / "src/ui/audit_workspace.py"
 
+import agents.audit_explainer as audit_explainer
+
 
 def run_app(monkeypatch) -> AppTest:
     monkeypatch.chdir(ROOT)
@@ -33,6 +35,7 @@ def test_guided_demo_uses_live_descriptive_service(monkeypatch):
     assert not any("Implement Changes" in button.label for button in app.button)
     preview = next(button for button in app.button if button.label == "Generate change preview")
     assert preview.disabled
+    assert any(button.label == "Generate optional explanation" for button in app.button)
 
     page_text = " ".join(item.value for item in app.markdown)
     assert "Guided demo is ready" in page_text
@@ -125,3 +128,48 @@ def test_changing_actions_clears_stale_preview(monkeypatch):
     action_picker.set_value([]).run(timeout=30)
     assert not any("Preview ready" in item.value for item in app.markdown)
     assert not any(button.label == "Accept preview for export" for button in app.button)
+
+
+def test_optional_ai_is_not_called_until_explicit_request(monkeypatch):
+    def forbidden(*args, **kwargs):
+        raise AssertionError("Explanation generation ran without a button click")
+
+    monkeypatch.setattr(audit_explainer, "generate_explanation", forbidden)
+    app = run_app(monkeypatch)
+    assert not app.exception
+    assert any(button.label == "Generate optional explanation" for button in app.button)
+
+
+def test_visible_fallback_and_stale_explanation_clearing(monkeypatch):
+    def fallback(report, *, context, model, cache, timeout_seconds):
+        return {
+            "schema_version": "1.0",
+            "prompt_version": "test-prompt",
+            "status": "fallback",
+            "requested": True,
+            "cache_hit": False,
+            "model": model,
+            "context": context,
+            "evidence_digest": "digest",
+            "content": {
+                "headline": "Deterministic evidence summary",
+                "observations": ["Aggregate counts remain available."],
+                "unknowns": ["Model performance was not measured."],
+                "next_questions": ["Does the scope match the intended population?"],
+            },
+            "reason": "provider_unavailable: ConnectionError",
+            "limitations": ["This is a fallback."],
+        }
+
+    monkeypatch.setattr(audit_explainer, "generate_explanation", fallback)
+    app = run_app(monkeypatch)
+    next(button for button in app.button
+         if button.label == "Generate optional explanation").click().run(timeout=30)
+
+    assert not app.exception
+    assert any("deterministic summary" in warning.value.lower() for warning in app.warning)
+    assert any("Deterministic evidence summary" in item.value for item in app.markdown)
+
+    context = next(widget for widget in app.selectbox if widget.label == "Explanation focus")
+    context.set_value("Representation evidence").run(timeout=30)
+    assert not any("Deterministic evidence summary" in item.value for item in app.markdown)

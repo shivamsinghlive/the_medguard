@@ -14,7 +14,11 @@ No. It heuristically screens column names and values for potential identifiers a
 
 ## Does it send patient records to an LLM?
 
-No AI or network call exists in the active audit path. The guided demo and deterministic tests run offline. Any future explanation feature must be explicitly requested and must keep original records out of prompts.
+No AI call exists in the deterministic audit path. The optional explanation runs only after an explicit button click and targets local Ollama. Its prompt excludes records, cell values, group labels, column names, and file names. If the model is absent, slow, malformed, or fails claim checks, MedGuard shows a deterministic fallback.
+
+## Are the explanations grounded in medical sources?
+
+Not in the current branch. The W04 reviewed source inventory is not present on `main`, so source-grounded RAG is disabled. The explainer is limited to aggregate audit evidence and is visibly labeled unverified.
 
 ## Why are automatic fixes disabled?
 
@@ -30,7 +34,7 @@ Validation rejects malformed CSV, non-UTF-8 or binary input, duplicate headers, 
 
 ## What is already real versus planned?
 
-Working now: structural validation, potential-identifier screening, descriptive quality evidence, representation evidence, source-preservation checks, reviewable change previews, explicit acceptance, and JSON/CSV export. Planned: optional bounded explanations and final independent release validation.
+Working now: structural validation, potential-identifier screening, descriptive quality evidence, representation evidence, source-preservation checks, reviewable change previews, explicit acceptance, optional bounded local explanations, JSON/CSV export, and an independent release-validation record. Planned: reviewed source-grounded explanations and model-specific evaluation.
 
 ## What should happen before clinical use?
 

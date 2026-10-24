@@ -20,6 +20,8 @@ The current Streamlit workspace provides:
 - Reviewable previews for five allowlisted cleaning actions on a separate copy.
 - Protected demographic, outcome, prediction, and identifier roles excluded from UI change targets.
 - Explicit preview acceptance followed by a separate CSV export with source-row labels.
+- Optional local explanations generated only after a button click, with a deterministic fallback.
+- Prompt minimization that excludes records, cell values, group labels, column names, and file names.
 
 Potential identifier screening is a review aid. A result with no matched patterns does not establish HIPAA de-identification.
 
@@ -60,6 +62,7 @@ flowchart LR
     F --> H
     G --> H
     H --> I[JSON and CSV exports]
+    H -. Explicit request .-> J[Optional local explanation]
 ```
 
 The same DataFrame returned by validation feeds every downstream check. Uploaded files are not independently re-parsed after validation.
@@ -84,6 +87,7 @@ src/services/input_validation.py
 src/services/privacy_screening.py
 src/services/representation.py  Deterministic analysis services
 src/services/audit_runner.py    Report orchestration and exports
+src/agents/audit_explainer.py   Bounded optional explanation adapter
 src/ui/audit_workspace.py       Active Streamlit experience
 tests/analysis/                 Service-level edge cases
 tests/integration/              End-to-end evidence packaging
@@ -102,7 +106,8 @@ Use the bundled diabetes cohort for the shortest offline walkthrough:
 3. Inspect the observed 73/27 representation without enabling a reference.
 4. Enable the illustrative 50/50 reference and observe that the gap remains descriptive rather than becoming an automatic fairness verdict.
 5. Open **Identifier screening** to review coverage and limitations.
-6. Download the JSON audit record.
+6. Optionally request an **Audit overview** explanation and point out its unverified/fallback state.
+7. Download the JSON audit record.
 
 The full presenter script and judge questions are in [`docs/demo/DEMO_SCRIPT.md`](docs/demo/DEMO_SCRIPT.md) and [`docs/demo/JUDGE_QA.md`](docs/demo/JUDGE_QA.md).
 
@@ -115,11 +120,13 @@ MedGuard currently does not:
 - Measure model performance without labels, held-out predictions, and an evaluation protocol.
 - Determine clinical harm from demographic representation.
 - Certify fairness, safety, regulatory compliance, or de-identification.
-- Upload data to an AI provider in the active workflow.
+- Send data to a cloud AI provider. The optional explainer targets local Ollama only.
 - Automatically balance cohorts or apply SMOTE.
 - Modify the source dataset.
 
 Supported change previews include exact-duplicate removal, missing-row rules on selected features, median or constant missing-value fills, whitespace trimming, and feature-column removal. Any blocked action blocks the complete change set, so the UI never presents a partial result as ready.
+
+The optional explainer receives only minimized aggregate evidence. It uses a controlled focus, an eight-second timeout, structured-output checks, unsupported-claim filters, and a deterministic fallback. Successful responses are cached by dataset fingerprint, evidence digest, focus, model, prompt version, and schema version. Source-grounded RAG remains disabled because the W04 source inventory is not present on `main`.
 
 ## Team workflow
 

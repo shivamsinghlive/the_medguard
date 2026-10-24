@@ -173,3 +173,24 @@ def test_reviewed_copy_uses_collision_safe_source_index_header():
     frame = pd.DataFrame({"source_row_index": ["existing"]}, index=[42])
     rows = list(csv.DictReader(io.StringIO(reviewed_copy_csv(frame))))
     assert rows == [{"_source_row_index": "42", "source_row_index": "existing"}]
+
+
+def test_csv_export_marks_optional_explanation_as_non_evidence_output():
+    validation, frame = validate_input(b"sex,value\nF,10\nM,20\n")
+    report = run_audit(frame, demographic_columns=["sex"], source_type="test",
+                       input_validation=validation)
+    report["optional_explanation"] = {
+        "status": "fallback",
+        "context": "Audit overview",
+        "content": {
+            "headline": "Aggregate audit evidence",
+            "observations": ["Two rows were validated."],
+            "unknowns": ["Performance was not measured."],
+            "next_questions": ["Is the scope appropriate?"],
+        },
+    }
+    rows = list(csv.DictReader(io.StringIO(report_csv(report))))
+    explanation = next(row for row in rows if row["row_type"] == "optional_explanation")
+    assert explanation["status"] == "fallback"
+    assert explanation["code"] == "Audit overview"
+    assert json.loads(explanation["summary"])["unknowns"] == ["Performance was not measured."]
