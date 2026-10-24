@@ -7,6 +7,7 @@ import json
 import sys
 from pathlib import Path
 
+import altair as alt
 import pandas as pd
 import streamlit as st
 
@@ -100,21 +101,27 @@ st.markdown(
     }
     html { scroll-behavior: smooth; }
     .stApp { background:
-      radial-gradient(circle at 88% 5%, rgba(67,198,181,.08), transparent 23rem), #f4f8f6; }
+      radial-gradient(circle at 82% 4%, rgba(88,101,242,.13), transparent 28rem),
+      radial-gradient(circle at 8% 34%, rgba(26,211,190,.10), transparent 24rem),
+      linear-gradient(180deg, #f7f9ff 0%, #f4fbfa 46%, #f8fafc 100%); }
     .block-container { max-width: 1240px; padding-top: 1.35rem; padding-bottom: 5rem; }
     h1, h2, h3 { color: var(--mg-ink); letter-spacing: -0.035em; }
     p, li, label { color: var(--mg-muted); }
     #MainMenu, footer, [data-testid="stToolbar"] { visibility: hidden; }
     header[data-testid="stHeader"] { background: transparent; }
-    .mg-hero { position: relative; overflow: hidden; padding: 2.25rem 2.35rem;
-      border-radius: 24px; color: white; margin-bottom: 1rem;
-      background: radial-gradient(circle at 88% 12%, rgba(67,198,181,.30), transparent 27%),
-        linear-gradient(128deg, #0b1f2a 0%, #123944 64%, #0b5c5b 100%);
-      box-shadow: 0 20px 50px rgba(11,31,42,.16); }
-    .mg-hero::after { content: ""; position: absolute; width: 260px; height: 260px;
-      right: -95px; bottom: -145px; border: 1px solid rgba(255,255,255,.18);
+    .mg-hero { position: relative; overflow: hidden; padding: 2.5rem 2.65rem;
+      border-radius: 30px; color: white; margin-bottom: 1rem;
+      background: radial-gradient(circle at 78% 18%, rgba(57,210,194,.24), transparent 25%),
+        radial-gradient(circle at 96% 82%, rgba(125,102,255,.28), transparent 28%),
+        linear-gradient(135deg, #071925 0%, #102f43 47%, #163b58 73%, #342a68 100%);
+      box-shadow: 0 26px 70px rgba(25,44,84,.24), inset 0 1px 0 rgba(255,255,255,.12); }
+    .mg-hero::after { content: ""; position: absolute; width: 330px; height: 330px;
+      right: -105px; bottom: -195px; border: 1px solid rgba(255,255,255,.18);
       border-radius: 50%; box-shadow: 0 0 0 38px rgba(255,255,255,.04),
         0 0 0 78px rgba(255,255,255,.025); }
+    .mg-hero-grid { display: grid; grid-template-columns: minmax(0,1.4fr) minmax(270px,.6fr);
+      gap: 2rem; align-items: center; position: relative; z-index: 1; }
+    .mg-hero-copy { min-width: 0; }
     .mg-eyebrow { color: #8ee4d8; font-size: .72rem; font-weight: 800;
       letter-spacing: .14em; text-transform: uppercase; margin-bottom: .75rem; }
     .mg-hero h1 { max-width: 780px; color: white; font-size: clamp(2.15rem, 5vw, 3.7rem);
@@ -123,13 +130,30 @@ st.markdown(
       line-height: 1.65; margin: 0 0 1.35rem; }
     .mg-hero-meta { display: flex; flex-wrap: wrap; gap: .55rem; }
     .mg-chip { display: inline-block; border: 1px solid #abdadd; border-radius: 999px;
-      background: rgba(255,255,255,.08); color: #e9fffb; padding: .36rem .72rem;
+      background: rgba(255,255,255,.09); backdrop-filter: blur(12px); color: #e9fffb; padding: .36rem .72rem;
       font-size: .75rem; font-weight: 700; }
     .mg-hero-flow { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: .55rem;
       margin-top: 1.35rem; max-width: 880px; }
     .mg-flow-step { border-top: 1px solid rgba(255,255,255,.32); padding-top: .65rem;
       color: #dff4f1; font-size: .72rem; line-height: 1.35; }
     .mg-flow-step strong { color: white; display: block; font-size: .78rem; margin-bottom: .1rem; }
+    .mg-orbit { position: relative; width: min(100%, 310px); aspect-ratio: 1; margin: auto;
+      display: grid; place-items: center; }
+    .mg-orbit-ring { position: absolute; inset: 8%; border-radius: 50%;
+      border: 1px solid rgba(145,237,227,.30); box-shadow: 0 0 55px rgba(36,217,199,.13); }
+    .mg-orbit-ring.r2 { inset: 22%; border-style: dashed; border-color: rgba(190,180,255,.34);
+      animation: mg-spin 22s linear infinite; }
+    .mg-core { width: 46%; aspect-ratio: 1; border-radius: 50%; display: grid; place-items: center;
+      text-align: center; color: white; font-size: .72rem; font-weight: 750; line-height: 1.3;
+      background: radial-gradient(circle at 34% 28%, #42decf, #177e99 48%, #4742a5 100%);
+      box-shadow: 0 0 0 12px rgba(255,255,255,.04), 0 18px 45px rgba(0,0,0,.28); }
+    .mg-core strong { display: block; font-size: 1.8rem; letter-spacing: -.06em; }
+    .mg-node { position: absolute; padding: .42rem .62rem; border: 1px solid rgba(255,255,255,.18);
+      border-radius: 999px; color: #eafffc; background: rgba(8,28,43,.68); backdrop-filter: blur(10px);
+      font-size: .64rem; font-weight: 800; box-shadow: 0 10px 25px rgba(0,0,0,.16); }
+    .mg-node.n1 { top: 5%; left: 12%; } .mg-node.n2 { right: 0; top: 44%; }
+    .mg-node.n3 { bottom: 5%; left: 7%; }
+    @keyframes mg-spin { to { transform: rotate(360deg); } }
     .mg-section { display: flex; align-items: end; justify-content: space-between; gap: 1rem;
       margin: 2.25rem 0 .75rem; }
     .mg-section-kicker { color: var(--mg-teal); font-size: .7rem; font-weight: 800;
@@ -137,8 +161,9 @@ st.markdown(
     .mg-section-title { color: var(--mg-ink); font-size: 1.55rem; font-weight: 760;
       letter-spacing: -.035em; margin-top: .15rem; }
     .mg-section-copy { color: var(--mg-muted); font-size: .86rem; max-width: 480px; text-align: right; }
-    .mg-card { border: 1px solid var(--mg-border); border-radius: 16px; background: white;
-      padding: 1rem 1.1rem; margin: .65rem 0; box-shadow: 0 8px 24px rgba(20,54,62,.055); }
+    .mg-card { border: 1px solid rgba(210,222,236,.86); border-radius: 20px;
+      background: linear-gradient(145deg, rgba(255,255,255,.96), rgba(246,250,255,.92));
+      padding: 1.05rem 1.15rem; margin: .65rem 0; box-shadow: 0 12px 34px rgba(28,48,83,.07); }
     .mg-card.high { border-left: 4px solid var(--mg-coral); }
     .mg-card.medium { border-left: 4px solid #d59b2d; }
     .mg-card.low { border-left: 4px solid var(--mg-teal); }
@@ -152,10 +177,11 @@ st.markdown(
     .mg-empty { border: 1px dashed #9ebdb6; background: rgba(255,255,255,.65);
       color: var(--mg-muted); text-align: center; padding: 2rem; }
     .mg-review-queue { display: grid; grid-template-columns: auto 1fr auto; align-items: center;
-      gap: 1rem; border: 1px solid #b8d9d2; border-radius: 18px; background: white;
-      padding: 1.05rem 1.15rem; margin: 1rem 0 1.3rem; box-shadow: 0 10px 30px rgba(20,54,62,.06); }
+      gap: 1rem; border: 1px solid rgba(128,152,234,.22); border-radius: 22px;
+      background: linear-gradient(120deg, rgba(255,255,255,.98), rgba(239,247,255,.92));
+      padding: 1.1rem 1.2rem; margin: 1rem 0 1.3rem; box-shadow: 0 16px 42px rgba(39,53,100,.09); }
     .mg-review-count { display: grid; place-items: center; min-width: 3rem; height: 3rem;
-      border-radius: 14px; background: var(--mg-teal-soft); color: #075f59;
+      border-radius: 16px; background: linear-gradient(135deg,#dcfff7,#e5e4ff); color: #164f6f;
       font-size: 1.35rem; font-weight: 850; }
     .mg-review-copy strong { display: block; color: var(--mg-ink); font-size: 1rem; }
     .mg-review-copy span { color: var(--mg-muted); font-size: .82rem; line-height: 1.45; }
@@ -179,8 +205,13 @@ st.markdown(
       letter-spacing: .1em; text-transform: uppercase; }
     .mg-explanation { border: 1px solid #c8d8e8; border-radius: 18px; background: #f6f9fd;
       padding: 1.05rem 1.15rem; margin: .75rem 0; }
-    .mg-source-card { height: 100%; border: 1px solid var(--mg-border); border-radius: 16px;
-      background: white; padding: 1rem 1.05rem; box-shadow: 0 8px 24px rgba(20,54,62,.045); }
+    .mg-source-card { position: relative; overflow: hidden; height: 100%;
+      border: 1px solid rgba(207,220,236,.9); border-radius: 20px;
+      background: linear-gradient(145deg, #ffffff, #f7faff); padding: 1.15rem 1.15rem;
+      box-shadow: 0 14px 36px rgba(27,47,84,.075); transition: transform .2s ease, box-shadow .2s ease; }
+    .mg-source-card::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 4px;
+      background: linear-gradient(#26c9b6,#6d63f2); }
+    .mg-source-card:hover { transform: translateY(-3px); box-shadow: 0 20px 42px rgba(27,47,84,.12); }
     .mg-source-label { color: var(--mg-teal); font-size: .66rem; font-weight: 850;
       letter-spacing: .1em; text-transform: uppercase; }
     .mg-source-title { color: var(--mg-ink); font-size: .96rem; font-weight: 780;
@@ -205,33 +236,57 @@ st.markdown(
     .mg-nav a { color: #315e58 !important; text-decoration: none; border-radius: 8px;
       padding: .42rem .55rem; font-size: .76rem; font-weight: 700; }
     .mg-nav a:hover { background: #dceae6; }
-    [data-testid="stMetric"] { border: 1px solid var(--mg-border); border-radius: 12px;
-      background: white; padding: .9rem 1rem; box-shadow: 0 7px 22px rgba(20,54,62,.04); }
+    [data-testid="stMetric"] { position: relative; overflow: hidden; border: 1px solid rgba(211,222,236,.9);
+      border-radius: 18px; background: linear-gradient(145deg,#fff,#f6f9ff); padding: 1rem 1.05rem;
+      box-shadow: 0 12px 32px rgba(29,48,84,.07); }
+    [data-testid="stMetric"]::before { content: ""; position: absolute; left: 0; top: 0; right: 0;
+      height: 3px; background: linear-gradient(90deg,#26c9b6,#6d63f2,#f17f65); }
     [data-testid="stMetricLabel"] { color: var(--mg-muted); }
     [data-testid="stMetricValue"] { color: var(--mg-ink); font-size: 1.5rem; font-weight: 760; }
-    [data-testid="stSidebar"] { background: #eef5f2; border-right: 1px solid #d6e4df; }
+    [data-testid="stSidebar"] { background:
+      radial-gradient(circle at 10% 0%, rgba(73,214,197,.17), transparent 16rem),
+      linear-gradient(180deg,#eef5fa,#edf7f4); border-right: 1px solid #d6e4e8; }
     [data-testid="stSidebar"] .block-container { padding-top: 1.25rem; }
     [data-testid="stFileUploader"] { background: white; border-radius: 14px; padding: .35rem .65rem; }
     [data-baseweb="select"] > div { background: white; border-color: #c7d9d4; color: var(--mg-ink); }
     [data-baseweb="select"] input, [data-baseweb="select"] svg { color: var(--mg-ink); fill: var(--mg-ink); }
     [data-baseweb="tag"] { background-color: #0b8178; }
     [data-baseweb="tag"] span { color: white; }
-    .stTabs [data-baseweb="tab-list"] { gap: .25rem; background: #e8f0ed; padding: .3rem;
-      border-radius: 12px; overflow-x: auto; }
-    .stTabs [data-baseweb="tab"] { border-radius: 9px; padding: .45rem .8rem; }
-    .stTabs [aria-selected="true"] { background: white; box-shadow: 0 2px 8px rgba(20,54,62,.08); }
-    .stDownloadButton > button, .stButton > button { border-radius: 10px; font-weight: 700; }
+    .stTabs [data-baseweb="tab-list"] { gap: .28rem; background: rgba(231,238,247,.85); padding: .35rem;
+      border-radius: 15px; overflow-x: auto; backdrop-filter: blur(8px); }
+    .stTabs [data-baseweb="tab"] { border-radius: 11px; padding: .5rem .85rem; }
+    .stTabs [aria-selected="true"] { background: white; color: #37348b;
+      box-shadow: 0 4px 14px rgba(38,52,101,.10); }
+    .stDownloadButton > button, .stButton > button { border-radius: 12px; font-weight: 750;
+      min-height: 2.8rem; transition: transform .18s ease, box-shadow .18s ease; }
+    .stButton > button[kind="primary"] { border: 0; color: white;
+      background: linear-gradient(105deg,#087f78,#4b55c8); box-shadow: 0 9px 24px rgba(40,76,152,.20); }
+    .stButton > button:hover, .stDownloadButton > button:hover { transform: translateY(-1px);
+      box-shadow: 0 10px 24px rgba(36,57,100,.13); }
+    .mg-viz-head { display: flex; justify-content: space-between; align-items: center;
+      margin: .25rem 0 .65rem; }
+    .mg-viz-title { color: var(--mg-ink); font-size: .9rem; font-weight: 800; }
+    .mg-viz-badge { color: #4a4da6; background: #ececff; border-radius: 999px;
+      padding: .28rem .52rem; font-size: .62rem; font-weight: 850; letter-spacing: .07em; text-transform: uppercase; }
+    .mg-chart-shell { border: 1px solid rgba(209,221,235,.9); border-radius: 20px;
+      background: rgba(255,255,255,.88); padding: .85rem 1rem .4rem;
+      box-shadow: 0 14px 38px rgba(29,48,84,.07); backdrop-filter: blur(8px); }
     .stDownloadButton > button { border-color: #15877d; color: #086c64; background: white; }
     .stButton > button:focus-visible, .stDownloadButton > button:focus-visible,
     [data-baseweb="tab"]:focus-visible, [data-baseweb="select"]:focus-within,
     input:focus-visible, [role="radio"]:focus-visible, [role="checkbox"]:focus-visible {
       outline: 3px solid #62c5ca; outline-offset: 2px;
     }
-    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; } .mg-orbit-ring.r2 { animation: none; }
+      .mg-source-card, .stButton > button, .stDownloadButton > button { transition: none; }
+    }
     @media (max-width: 700px) {
       .block-container { padding: .8rem .8rem 3rem; }
       .mg-hero { padding: 1.6rem 1.25rem; border-radius: 18px; }
       .mg-hero h1 { font-size: 2.2rem; }
+      .mg-hero-grid { grid-template-columns: 1fr; }
+      .mg-orbit { display: none; }
       .mg-section { display: block; }
       .mg-section-copy { text-align: left; margin-top: .35rem; }
       .mg-status-row { grid-template-columns: 1fr; }
@@ -281,6 +336,23 @@ def clear_change_state() -> None:
     st.session_state["selected_change_actions"] = []
 
 
+def style_chart(chart):
+    """Apply the workspace's accessible light chart treatment."""
+
+    return (
+        chart.configure(background="transparent")
+        .configure_view(strokeOpacity=0)
+        .configure_axis(
+            domain=False,
+            gridColor="#e8edf5",
+            labelColor="#526775",
+            titleColor="#526775",
+            tickColor="#d8e0eb",
+        )
+        .configure_legend(labelColor="#526775", symbolType="circle")
+    )
+
+
 with st.sidebar:
     st.markdown(
         '<div class="mg-brand"><div class="mg-shield">MG</div><div>'
@@ -324,18 +396,24 @@ with st.sidebar:
 
 
 st.markdown(
-    '<div class="mg-hero"><div class="mg-eyebrow">Healthcare dataset readiness · DS+X 2026</div>'
-    '<h1>See the evidence before you train.</h1>'
-    '<div class="mg-lede">MedGuard turns a healthcare CSV into a reviewable record of cohort '
-    'coverage, data quality, and potential identifier signals—without changing a single row.</div>'
-    '<div class="mg-hero-meta"><span class="mg-chip">Deterministic checks</span>'
-    '<span class="mg-chip">Source preserved</span><span class="mg-chip">Offline-ready demo</span>'
-    '<span class="mg-chip">Honest unknowns</span></div>'
+    '<div class="mg-hero"><div class="mg-hero-grid"><div class="mg-hero-copy">'
+    '<div class="mg-eyebrow">Healthcare dataset intelligence · DS+X 2026</div>'
+    '<h1>See the evidence.<br>Shape better data.</h1>'
+    '<div class="mg-lede">See the evidence before you train. Explore cohort coverage, data '
+    'quality, and potential identifier signals in one visual command center.</div>'
+    '<div class="mg-hero-meta"><span class="mg-chip">✦ Deterministic checks</span>'
+    '<span class="mg-chip">◈ Source preserved</span><span class="mg-chip">◉ Offline-ready</span>'
+    '<span class="mg-chip">◇ Honest unknowns</span></div>'
     '<div class="mg-hero-flow">'
-    '<div class="mg-flow-step"><strong>01 · Validate</strong>Reject unsafe structure early</div>'
-    '<div class="mg-flow-step"><strong>02 · Inspect</strong>Measure evidence and unknowns</div>'
-    '<div class="mg-flow-step"><strong>03 · Preview</strong>Review changes on a copy</div>'
+    '<div class="mg-flow-step"><strong>01 · Validate</strong>Gate unsafe structure</div>'
+    '<div class="mg-flow-step"><strong>02 · Inspect</strong>Map measured signals</div>'
+    '<div class="mg-flow-step"><strong>03 · Preview</strong>Test changes safely</div>'
     '<div class="mg-flow-step"><strong>04 · Export</strong>Carry evidence forward</div>'
+    '</div></div>'
+    '<div class="mg-orbit" aria-hidden="true"><div class="mg-orbit-ring"></div>'
+    '<div class="mg-orbit-ring r2"></div><div class="mg-core"><div><strong>360°</strong>'
+    'DATA VIEW</div></div><div class="mg-node n1">COHORT</div>'
+    '<div class="mg-node n2">PRIVACY</div><div class="mg-node n3">QUALITY</div></div>'
     '</div></div>',
     unsafe_allow_html=True,
 )
@@ -538,6 +616,93 @@ overview_tab, cohorts_tab, privacy_tab, quality_tab, data_tab = st.tabs(
 )
 
 with overview_tab:
+    st.markdown(
+        '<div class="mg-viz-head"><div class="mg-viz-title">Dataset pulse</div>'
+        '<div class="mg-viz-badge">Live from validated data</div></div>',
+        unsafe_allow_html=True,
+    )
+    visual_col1, visual_col2 = st.columns(2)
+    with visual_col1:
+        with st.container(border=True):
+            if representation["attributes"] and representation["attributes"][0]["groups"]:
+                pulse_attribute = representation["attributes"][0]
+                cohort_chart_data = pd.DataFrame(
+                    [
+                        {"Group": group["label"], "Records": group["count"]}
+                        for group in pulse_attribute["groups"]
+                    ]
+                )
+                largest_group = max(pulse_attribute["groups"], key=lambda group: group["count"])
+                st.markdown(f"**{pulse_attribute['column']} · observed distribution**")
+                st.caption(
+                    f"Largest recorded group: {largest_group['label']} · "
+                    f"{largest_group['proportion']:.1%}."
+                )
+                cohort_arc = (
+                    alt.Chart(cohort_chart_data)
+                    .mark_arc(innerRadius=58, outerRadius=90, cornerRadius=7, padAngle=0.025)
+                    .encode(
+                        theta=alt.Theta("Records:Q", stack=True),
+                        color=alt.Color(
+                            "Group:N",
+                            scale=alt.Scale(range=["#19bfae", "#665be7", "#f17965", "#f1b84b"]),
+                            legend=alt.Legend(orient="bottom", title=None, columns=1),
+                        ),
+                        tooltip=["Group:N", alt.Tooltip("Records:Q", format=",")],
+                    )
+                    .properties(height=230)
+                )
+                cohort_center = (
+                    alt.Chart(
+                        pd.DataFrame(
+                            {"label": [f"{largest_group['proportion']:.0%}"]}
+                        )
+                    )
+                    .mark_text(fontSize=25, fontWeight=800, color="#24394a")
+                    .encode(text="label:N")
+                )
+                st.altair_chart(style_chart(cohort_arc + cohort_center), use_container_width=True)
+            else:
+                st.markdown("**Cohort distribution**")
+                st.caption("Choose a demographic column to reveal the observed composition.")
+                st.markdown('<div class="mg-empty">No cohort role selected</div>', unsafe_allow_html=True)
+    with visual_col2:
+        with st.container(border=True):
+            total_cells = max(report["dataset"]["row_count"] * report["dataset"]["column_count"], 1)
+            observed_cells = max(total_cells - quality["missing_cells"], 0)
+            observed_percent = observed_cells / total_cells * 100
+            completeness_data = pd.DataFrame(
+                {
+                    "Cell state": ["Observed", "Missing"],
+                    "Cells": [observed_cells, quality["missing_cells"]],
+                }
+            )
+            st.markdown("**Cell coverage · measured completeness**")
+            st.caption(f"{observed_percent:.1f}% of cells contain a value.")
+            completeness_arc = (
+                alt.Chart(completeness_data)
+                .mark_arc(innerRadius=58, outerRadius=90, cornerRadius=7, padAngle=0.025)
+                .encode(
+                    theta=alt.Theta("Cells:Q", stack=True),
+                    color=alt.Color(
+                        "Cell state:N",
+                        scale=alt.Scale(
+                            domain=["Observed", "Missing"], range=["#665be7", "#e6eaf2"]
+                        ),
+                        legend=alt.Legend(orient="bottom", title=None),
+                    ),
+                    tooltip=["Cell state:N", alt.Tooltip("Cells:Q", format=",")],
+                )
+                .properties(height=230)
+            )
+            completeness_center = (
+                alt.Chart(pd.DataFrame({"label": [f"{observed_percent:.0f}%"]}))
+                .mark_text(fontSize=25, fontWeight=800, color="#24394a")
+                .encode(text="label:N")
+            )
+            st.altair_chart(
+                style_chart(completeness_arc + completeness_center), use_container_width=True
+            )
     if representation["findings"]:
         st.markdown("### What needs review")
         for finding in representation["findings"]:
@@ -583,18 +748,58 @@ with cohorts_tab:
             )
         table = pd.DataFrame(rows)
         chart_values = pd.DataFrame(
-            {
-                "Observed share (%)": [
-                    round(group["proportion"] * 100, 1)
-                    if group["proportion"] is not None else 0
-                    for group in attribute["groups"]
-                ]
-            },
-            index=[group["label"] for group in attribute["groups"]],
+            [
+                {
+                    "Group": group["label"],
+                    "Observed share (%)": (
+                        round(group["proportion"] * 100, 1)
+                        if group["proportion"] is not None else 0
+                    ),
+                    "Reference share (%)": (
+                        round(group["reference_proportion"] * 100, 1)
+                        if group["reference_proportion"] is not None else None
+                    ),
+                }
+                for group in attribute["groups"]
+            ]
         )
         chart_col, table_col = st.columns([0.85, 1.15])
         with chart_col:
-            st.bar_chart(chart_values, height=245, color="#17998f")
+            cohort_bars = (
+                alt.Chart(chart_values)
+                .mark_bar(cornerRadiusEnd=9, height=24)
+                .encode(
+                    x=alt.X(
+                        "Observed share (%):Q",
+                        scale=alt.Scale(domain=[0, 100]),
+                        axis=alt.Axis(title="Observed share", format=".0f", grid=False),
+                    ),
+                    y=alt.Y("Group:N", sort="-x", title=None),
+                    color=alt.Color(
+                        "Group:N",
+                        scale=alt.Scale(range=["#19bfae", "#665be7", "#f17965", "#f1b84b"]),
+                        legend=None,
+                    ),
+                    tooltip=[
+                        "Group:N",
+                        alt.Tooltip("Observed share (%):Q", format=".1f"),
+                        alt.Tooltip("Reference share (%):Q", format=".1f"),
+                    ],
+                )
+            )
+            cohort_labels = (
+                alt.Chart(chart_values)
+                .mark_text(align="left", baseline="middle", dx=6, color="#273746", fontWeight=700)
+                .encode(
+                    x="Observed share (%):Q",
+                    y=alt.Y("Group:N", sort="-x"),
+                    text=alt.Text("Observed share (%):Q", format=".1f"),
+                )
+            )
+            st.altair_chart(
+                style_chart((cohort_bars + cohort_labels).properties(height=245)),
+                use_container_width=True,
+            )
         with table_col:
             st.dataframe(table, use_container_width=True, hide_index=True)
         st.caption(
@@ -638,16 +843,30 @@ with quality_tab:
     quality_cols[1].metric("Columns with missing data", quality["columns_with_missing_values"])
     quality_cols[2].metric("Rows in duplicate sets", quality["duplicate_rows"])
     if quality["missing_by_column"]:
-        st.dataframe(
-            pd.DataFrame(
-                [
-                    {"Column": column, "Missing values": count}
-                    for column, count in quality["missing_by_column"].items()
-                ]
-            ),
-            use_container_width=True,
-            hide_index=True,
+        missing_chart_data = pd.DataFrame(
+            [
+                {"Column": column, "Missing values": count}
+                for column, count in quality["missing_by_column"].items()
+            ]
         )
+        missing_chart = (
+            alt.Chart(missing_chart_data)
+            .mark_bar(cornerRadiusEnd=8, height=18)
+            .encode(
+                x=alt.X("Missing values:Q", title="Missing cells", axis=alt.Axis(grid=False)),
+                y=alt.Y("Column:N", sort="-x", title=None),
+                color=alt.Color(
+                    "Missing values:Q",
+                    scale=alt.Scale(range=["#28c7b4", "#665be7"]),
+                    legend=None,
+                ),
+                tooltip=["Column:N", alt.Tooltip("Missing values:Q", format=",")],
+            )
+            .properties(height=max(180, min(380, len(missing_chart_data) * 34)))
+        )
+        st.altair_chart(style_chart(missing_chart), use_container_width=True)
+        with st.expander("View missingness table"):
+            st.dataframe(missing_chart_data, use_container_width=True, hide_index=True)
     else:
         st.write("No missing cells were observed.")
     st.caption("These are descriptive quality counts; no automatic cleaning has been applied.")
