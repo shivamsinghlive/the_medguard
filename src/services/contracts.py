@@ -127,3 +127,56 @@ def overall_status(statuses: List[str]) -> str:
         if status in statuses:
             return status
     return INSUFFICIENT_EVIDENCE
+
+
+# --- Change preview (W03) ---------------------------------------------------
+# preview_changes(df, actions, *, column_roles) -> (PreviewResult, DataFrame | None).
+# Only allowlisted cleaning actions run, in order, on a separate copy; the
+# source frame is never modified. Any blocked action blocks the whole preview
+# (output None) so a partial change set is never presented. Actions naming a
+# column with a protected role are blocked unless that action sets
+# allow_protected=True. The output keeps source index labels for traceability.
+PREVIEW_SCOPE = 'change_preview'
+PREVIEW_READY = 'preview_ready'
+PREVIEW_BLOCKED = 'blocked'
+APPLIED = 'applied'
+BLOCKED = 'blocked'
+NOT_RUN = 'not_run'  # an earlier action was blocked
+
+PROTECTED_ROLES = ('outcome', 'prediction', 'identifier', 'demographic')
+COLUMN_ROLES = PROTECTED_ROLES + ('feature',)
+ALLOWED_ACTIONS = ('drop_duplicate_rows', 'drop_rows_with_missing', 'fill_missing',
+                   'strip_whitespace', 'drop_column')
+
+
+class ActionResult(TypedDict):
+    index: int  # position in the requested action list
+    action: str
+    columns: List[str]
+    status: Literal['applied', 'blocked', 'not_run']
+    reason: Optional[str]  # why it was blocked; None otherwise
+    evidence: Dict[str, object]  # rows_removed, cells_changed, fill_value, ...
+    warnings: List[str]
+
+
+class GroupCounts(TypedDict):
+    observed_count: int
+    missing_count: int
+    counts: Dict[str, int]  # recorded label -> rows
+
+
+class PreviewResult(TypedDict):
+    schema_version: str
+    scope: str
+    status: Literal['preview_ready', 'blocked']
+    actions: List[ActionResult]
+    before: Dict[str, object]  # row_count, column_count, demographic_counts
+    after: Optional[Dict[str, object]]  # None when blocked
+    schema: Optional[Dict[str, object]]  # columns_removed, dtype_changes, preserved
+    source_fingerprint: str
+    output_fingerprint: Optional[str]
+    limitations: List[str]
+
+
+class ChangePreviewError(ValueError):
+    """Invalid preview request (action list or column roles), not a blocked action."""
