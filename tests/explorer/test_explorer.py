@@ -81,7 +81,7 @@ def test_api_loads_validates_and_analyzes_real_data(client):
     counts = {c['label']: c['count'] for c in result['readiness']['outcome']['classes']}
     assert counts == {str(k): int(v) for k, v in source['heart_disease'].value_counts().items()}
     assert {b['id'] for b in result['board']} == set(planner.WIDGETS)
-    assert result['subset'] == {'filters': {}, 'row_count': 800, 'total_rows': 800}
+    assert result['subset'] == {'filters': {}, 'ranges': {}, 'row_ids': 0, 'row_count': 800, 'total_rows': 800}
 
 
 def test_api_filters_recompute_from_the_subset(client):

@@ -8,6 +8,7 @@ import re
 from typing import Dict, List, Optional
 
 from explorer import llm
+from ui.visuals.payloads import quality_status
 
 WIDGET_FINDINGS = {
     'outcome': {'missing_outcome_labels', 'single_class', 'class_imbalance', 'minority_class_small'},
@@ -19,7 +20,7 @@ WIDGET_FINDINGS = {
     'correlations': {'redundant_features'},
 }
 TITLES = {
-    'validation': 'File check', 'screening': 'Identifier screen', 'outcome': 'Class balance',
+    'validation': 'File check', 'screening': 'Identifier screen', 'rows': 'Row map', 'outcome': 'Class balance',
     'representation': 'Representation', 'groups': 'Group x outcome', 'intersections': 'Intersections',
     'leakage': 'Leakage & rank', 'features': 'Feature profile', 'missingness': 'Missingness',
     'correlations': 'Correlations', 'distributions': 'Distributions', 'projection': '2-D map (PCA)',
@@ -55,6 +56,8 @@ def _status(widget: str, results: dict, findings: List[dict]) -> str:
         return 'not_available'
     if widget == 'screening':
         return results['screening']['status']
+    if widget == 'rows':
+        return quality_status(results['evidence']['quality'])
     if widget == 'representation':
         return results['representation']['status']
     if any(f['priority'] in ('high', 'medium') for f in findings):
@@ -70,6 +73,9 @@ def _headline(widget: str, results: dict) -> str:
     if widget == 'screening':
         n = len(results['screening']['findings'])
         return f'{n} potential identifier signal{"s" * (n != 1)}' if n else 'No patterns found (not de-identification)'
+    if widget == 'rows':
+        funnel = results['evidence']['mosaic']['funnel']
+        return f"{funnel[-1]['rows']:,} of {funnel[0]['rows']:,} rows pass every row check"
     if widget == 'representation':
         rep = results.get('representation')
         return f"{len(rep['attributes'])} attribute(s) - {rep['status'].replace('_', ' ')}" if rep else 'Choose demographic columns'
@@ -219,6 +225,9 @@ def facts(widget: str, results: dict) -> dict:
     if widget == 'missingness':
         base['columns'] = [{'column': m['column'], 'overall_rate': m['overall_rate'], 'max_gap_pp': m['max_gap_pp']}
                            for m in r['missingness']][:10]
+    if widget == 'rows':
+        base['funnel'] = [{'stage': f['label'], 'rows': f['rows'], 'dropped': f['dropped']}
+                          for f in results['evidence']['mosaic']['funnel']]
     if widget == 'projection' and r['projection']['points']:
         base['projection'] = {'features': r['projection']['features'],
                               'explained_variance': r['projection']['explained_variance']}
@@ -250,6 +259,9 @@ def _detail_points(widget: str, results: dict) -> List[str]:
                 lo, hi = min(rates), max(rates)
                 points.append(f"In {g['column']}, the share of '{target}' ranges from {_pct(lo[0])} ({lo[1]}) "
                               f"to {_pct(hi[0])} ({hi[1]}).")
+    if widget == 'rows':
+        points += [f"{f['label']}: {f['rows']:,} rows ({f['dropped']:,} left at this check)"
+                   for f in results['evidence']['mosaic']['funnel'][1:]]
     if widget == 'leakage':
         points += [f"{x['column']}: {x['metric'].upper()} {x['value']:.2f}" for x in r['rank'][:3]]
     if widget == 'missingness':

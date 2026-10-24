@@ -11,7 +11,7 @@ from typing import Dict, List, Optional
 from explorer import llm
 from services.privacy_screening import _name_finding, _tokens
 
-WIDGETS = ['validation', 'screening', 'outcome', 'representation', 'groups', 'intersections',
+WIDGETS = ['validation', 'screening', 'rows', 'outcome', 'representation', 'groups', 'intersections',
            'leakage', 'features', 'missingness', 'correlations', 'distributions', 'projection']
 OUTCOME_WIDGETS = {'outcome', 'groups', 'intersections', 'leakage'}
 
