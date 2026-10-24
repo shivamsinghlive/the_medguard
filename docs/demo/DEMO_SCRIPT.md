@@ -58,3 +58,9 @@ If time allows, choose **Audit overview** and click **Generate optional explanat
 - Keep one exported JSON report ready as a backup.
 - Rehearse with Wi-Fi disabled.
 - Do not describe the screen as a fairness, privacy, HIPAA, FDA, or clinical-safety certification.
+
+## Latest offline rehearsal
+
+October 24, 2026 on merged `main` after S04: the 1,200-row guided demo loaded without an AI call. With local Ollama unavailable, an explicit explanation request displayed its progress state, timed out after eight seconds, and returned the deterministic fallback. The audit tabs and JSON/CSV exports remained available.
+
+Before submission, resolve the team-size and pre-existing-work items in [`SUBMISSION_CHECKLIST.md`](SUBMISSION_CHECKLIST.md).
