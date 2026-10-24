@@ -1,29 +1,14 @@
-FDA Guidance on Artificial Intelligence and Machine Learning in Medical Devices
-Source: FDA 2021 Guidance Document
+FDA Context for AI/ML Medical Devices
+Reviewed: 2026-10-24. Every claim cites an entry in knowledge_base/SOURCES.md.
 
-Key Requirements:
+FDA, Health Canada, and the UK MHRA published 10 Good Machine Learning Practice guiding principles in October 2021. [S4]
+Principle 3: clinical study participants and data sets should be representative of the intended patient population, for example in age, sex, race, and ethnicity. [S4]
+Principle 4: training data sets should be independent of test sets, considering patient, data-acquisition, and site sources of dependence. [S4]
+Principle 8: test plans consider the intended patient population and important subgroups. [S4]
+Principle 9: users should receive information including model performance for appropriate subgroups and known limitations. [S4]
+The guiding principles do not state a numeric threshold for performance differences between subgroups. [S4]
+In January 2025 FDA issued draft guidance on AI-enabled device software functions (docket FDA-2024-D-4488); it is labelled draft and non-binding. [S5]
 
-Demographic Subgroup Analysis:
-- Algorithm performance must be evaluated across demographic subgroups
-- Minimum requirements: age, sex, race/ethnicity
-- Performance metrics must be reported separately for each subgroup
-- Substantial differences in performance require justification or mitigation
-
-Algorithmic Bias Considerations:
-- Training data must be representative of intended use population
-- Underrepresentation of specific groups must be documented
-- If performance differs >5% across groups, additional validation required
-- Post-market surveillance for fairness required
-
-Data Quality Standards:
-- Missing data handling must be documented and justified
-- Imputation methods must be validated
-- Data quality metrics required in submission
-- Bias in training data can lead to 510(k) rejection
-
-Documentation Requirements:
-- Dataset composition (demographics, sample sizes)
-- Data quality assessment
-- Fairness metric calculations
-- Mitigation strategies for identified bias
-- Validation results by subgroup
+Sources:
+[S4] FDA, Health Canada, MHRA. Good Machine Learning Practice for Medical Device Development: Guiding Principles. October 2021. https://www.fda.gov/media/153486/download
+[S5] FDA. Artificial Intelligence-Enabled Device Software Functions: Lifecycle Management and Marketing Submission Recommendations. Draft guidance, January 2025. https://www.fda.gov/regulatory-information/search-fda-guidance-documents/artificial-intelligence-enabled-device-software-functions-lifecycle-management-and-marketing

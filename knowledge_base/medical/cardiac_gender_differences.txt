@@ -1,22 +1,9 @@
-Gender Differences in Cardiac Disease Presentation
-Source: Journal of American College of Cardiology, CDC
+Sex Differences in Acute Myocardial Infarction
+Reviewed: 2026-10-24. Every claim cites an entry in knowledge_base/SOURCES.md.
 
-Symptom Presentation Differences:
+An American Heart Association scientific statement reports sex-specific differences in the presentation, pathophysiological mechanisms, and outcomes of acute myocardial infarction. [S3]
+Good machine learning practice calls for training and test data that represent the intended patient population, including sex, and for testing that considers important subgroups. [S4]
 
-Men with heart attacks typically present with:
-- Chest pain or discomfort (89% of cases)
-- Pain radiating to left arm (72%)
-- Shortness of breath (58%)
-- Cold sweat (64%)
-
-Women with heart attacks often present with:
-- Unusual fatigue (58% of cases) - often only symptom
-- Chest discomfort (58%) - less common than men
-- Nausea or vomiting (42%)
-- Jaw, neck, or back pain (38%)
-- Shortness of breath without chest pain (35%)
-
-Clinical Implications:
-Models trained predominantly on male patients may miss atypical presentations common in women. Women are 50% more likely to receive initial misdiagnosis in emergency departments. Gender-balanced datasets are critical for detecting diverse symptom patterns.
-
-Historical bias in cardiac research has led to systematic underdiagnosis in women, contributing to higher mortality rates for female heart attack patients under age 50.
+Sources:
+[S3] Mehta LS et al. Acute Myocardial Infarction in Women: A Scientific Statement From the American Heart Association. Circulation 2016;133(9):916-947. https://doi.org/10.1161/CIR.0000000000000351
+[S4] FDA, Health Canada, MHRA. Good Machine Learning Practice for Medical Device Development: Guiding Principles. October 2021. https://www.fda.gov/media/153486/download

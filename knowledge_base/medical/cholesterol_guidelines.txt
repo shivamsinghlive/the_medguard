@@ -1,15 +1,8 @@
-Clinical Cholesterol Guidelines
-Source: American Heart Association
+Adult Cholesterol Classification (NCEP ATP III)
+Reviewed: 2026-10-24. Every claim cites an entry in knowledge_base/SOURCES.md.
 
-Normal Cholesterol Levels:
-- Desirable: Less than 200 mg/dL
-- Borderline high: 200-239 mg/dL
-- High: 240 mg/dL and above
-- Very high: 400+ mg/dL indicates severe cardiovascular risk
+Total cholesterol in adults is classified as desirable below 200 mg/dL, borderline high at 200-239 mg/dL, and high at 240 mg/dL or above. [S1]
+LDL cholesterol of 190 mg/dL or above is classified as very high. [S1]
 
-Clinical Significance:
-High cholesterol is a primary risk factor for coronary heart disease and stroke. Patients with cholesterol levels above 240 mg/dL have twice the risk of heart disease compared to those with desirable levels below 200 mg/dL.
-
-In heart disease prediction models, patients with very high cholesterol (>400 mg/dL) represent the highest-risk population and are critical for model training. Removing these values as "outliers" would eliminate the most predictive cases.
-
-Treatment thresholds vary by patient risk factors, but levels above 190 mg/dL typically warrant intervention in high-risk patients.
+Sources:
+[S1] NCEP/NHLBI. ATP III Guidelines At-A-Glance Quick Desk Reference. June 2001. https://www.nhlbi.nih.gov/files/docs/guidelines/atglance.pdf

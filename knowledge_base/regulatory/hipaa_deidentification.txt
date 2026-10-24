@@ -1,0 +1,9 @@
+HIPAA De-identification Methods
+Reviewed: 2026-10-24. Every claim cites an entry in knowledge_base/SOURCES.md.
+
+The HIPAA Privacy Rule describes two de-identification methods: expert determination and Safe Harbor. [S6]
+Safe Harbor removes all elements of dates, except year, that relate directly to an individual, such as birth, admission, discharge, and death dates. [S6]
+Safe Harbor removes all ages over 89, which may instead be aggregated into a single category of age 90 or older. [S6]
+
+Sources:
+[S6] 45 CFR 164.514(b). https://www.law.cornell.edu/cfr/text/45/164.514
