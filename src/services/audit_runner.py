@@ -207,4 +207,23 @@ def report_csv(report: dict) -> str:
                     "suggested_action": warnings,
                 }
             )
+    explanation = report.get("optional_explanation")
+    if explanation:
+        content = explanation["content"]
+        writer.writerow(
+            {
+                "row_type": "optional_explanation",
+                "status": explanation["status"],
+                "code": explanation["context"],
+                "title": content["headline"],
+                "summary": json.dumps(
+                    {
+                        "observations": content["observations"],
+                        "unknowns": content["unknowns"],
+                    },
+                    sort_keys=True,
+                ),
+                "suggested_action": "; ".join(content["next_questions"]),
+            }
+        )
     return output.getvalue()

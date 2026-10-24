@@ -46,6 +46,10 @@ Select **Remove exact duplicate rows** and generate the preview. Show the before
 
 > MedGuard creates a separate reviewed copy and keeps the audited source unchanged. Demographics, outcomes, predictions, and identifiers are excluded from change targets. Automatic balancing and SMOTE remain unavailable because a cleaning action does not establish improved fairness or model performance.
 
+If time allows, choose **Audit overview** and click **Generate optional explanation**.
+
+> Explanations run only when requested. The prompt contains aggregate evidence rather than original records, and the interface shows a deterministic fallback if the local model is unavailable or fails output checks. Source-grounded RAG stays disabled until its source inventory is reviewed.
+
 ## Before presenting
 
 - Start from `streamlit run src/ui/audit_workspace.py`.

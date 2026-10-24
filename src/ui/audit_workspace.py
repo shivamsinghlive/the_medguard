@@ -18,6 +18,9 @@ sys.path.insert(0, str(SRC_DIR))
 from services.audit_runner import (
     finding_summary, report_csv, report_json, reviewed_copy_csv, run_audit,
 )
+from agents.audit_explainer import (
+    ALLOWED_CONTEXTS, DEFAULT_MODEL, explanation_cache_key, generate_explanation,
+)
 from services.change_preview import preview_changes
 from services.contracts import ChangePreviewError, RepresentationInputError
 from services.input_validation import validate_input
@@ -122,6 +125,8 @@ st.markdown(
       padding: 1rem 1.1rem; margin: .75rem 0; box-shadow: 0 8px 24px rgba(20,54,62,.05); }
     .mg-preview-ready { color: #08766d; font-size: .72rem; font-weight: 850;
       letter-spacing: .1em; text-transform: uppercase; }
+    .mg-explanation { border: 1px solid #c8d8e8; border-radius: 18px; background: #f6f9fd;
+      padding: 1.05rem 1.15rem; margin: .75rem 0; }
     .mg-brand { display: flex; align-items: center; gap: .65rem; margin: .3rem 0 1.5rem; }
     .mg-shield { display: grid; place-items: center; width: 2rem; height: 2rem;
       border-radius: 9px 9px 12px 12px; background: var(--mg-night); color: #76ddd0;
@@ -763,6 +768,95 @@ export_report = dict(report)
 if preview_result and preview_current:
     export_report["change_preview"] = dict(preview_result)
     export_report["change_preview"]["accepted_for_export"] = accepted
+
+st.markdown(
+    '<div class="mg-section"><div><div class="mg-section-kicker">Optional · explicit request</div>'
+    '<div class="mg-section-title">Explain the aggregate evidence</div></div>'
+    '<div class="mg-section-copy">The local model receives aggregate counts and statuses only. '
+    'Original records, cell values, labels, column names, and file names stay out of the prompt.'
+    '</div></div>',
+    unsafe_allow_html=True,
+)
+st.markdown(
+    '<div class="mg-warning"><strong>Source-grounded RAG is disabled.</strong> The reviewed W04 '
+    'knowledge-source inventory is not present on main. Explanations are optional, unverified, '
+    'and never replace the measured audit evidence.</div>',
+    unsafe_allow_html=True,
+)
+explanation_col, model_col = st.columns([2, 1])
+with explanation_col:
+    explanation_context = st.selectbox(
+        "Explanation focus",
+        ALLOWED_CONTEXTS,
+        key="explanation_context",
+    )
+with model_col:
+    explanation_model = st.selectbox(
+        "Local model",
+        [DEFAULT_MODEL],
+        key="explanation_model",
+        help="S04 uses local Ollama only; no cloud provider is called.",
+    )
+
+current_explanation_key = explanation_cache_key(
+    export_report,
+    explanation_context,
+    explanation_model,
+)
+if st.session_state.get("explanation_result_key") not in (None, current_explanation_key):
+    st.session_state.pop("explanation_result", None)
+    st.session_state.pop("explanation_result_key", None)
+
+if st.button("Generate optional explanation", use_container_width=True):
+    cache = st.session_state.setdefault("explanation_cache", {})
+    with st.spinner("Asking the local model for a bounded explanation…"):
+        explanation_result = generate_explanation(
+            export_report,
+            context=explanation_context,
+            model=explanation_model,
+            cache=cache,
+            timeout_seconds=8,
+        )
+    st.session_state["explanation_result"] = explanation_result
+    st.session_state["explanation_result_key"] = current_explanation_key
+
+explanation_result = st.session_state.get("explanation_result")
+explanation_current = st.session_state.get("explanation_result_key") == current_explanation_key
+if explanation_result and explanation_current:
+    content = explanation_result["content"]
+    if explanation_result["status"] == "fallback":
+        st.warning(
+            "The local AI explanation was unavailable, slow, malformed, or failed safety checks. "
+            "Showing a deterministic summary instead."
+        )
+    else:
+        cache_note = " · cache hit" if explanation_result["cache_hit"] else ""
+        st.success(f"Local explanation generated{cache_note}. Review it before use.")
+    st.markdown(
+        f'<div class="mg-explanation"><div class="mg-section-kicker">Unverified explanation</div>'
+        f'<div class="mg-title">{escape(content["headline"])}</div></div>',
+        unsafe_allow_html=True,
+    )
+    explanation_tabs = st.tabs(["Observations", "Unknowns", "Questions", "Technical details"])
+    with explanation_tabs[0]:
+        for item in content["observations"]:
+            st.write(f"- {item}")
+    with explanation_tabs[1]:
+        for item in content["unknowns"]:
+            st.write(f"- {item}")
+    with explanation_tabs[2]:
+        for item in content["next_questions"]:
+            st.write(f"- {item}")
+    with explanation_tabs[3]:
+        st.write(
+            f"Status: `{explanation_result['status']}` · Model: `{explanation_result['model']}` · "
+            f"Prompt: `{explanation_result['prompt_version']}`"
+        )
+        if explanation_result["reason"]:
+            st.caption(explanation_result["reason"])
+        for limitation in explanation_result["limitations"]:
+            st.write(f"- {limitation}")
+    export_report["optional_explanation"] = explanation_result
 
 st.markdown(
     '<div class="mg-export"><div class="mg-section-kicker">Portable evidence</div>'
