@@ -60,7 +60,7 @@ export default function PlanScreen(p: Props) {
           <p className="mt-1 text-ink-500">Every suggestion shows why it was made. Change anything before running.</p>
         </div>
         <span className={`chip !py-1.5 ${p.plan.source === 'ai' ? 'border-brand-200 bg-brand-50 text-brand-700' : 'border-slate-200 bg-card text-slate-600'}`}>
-          <Bot size={14} /> {p.plan.source === 'ai' ? `Planned with local AI (${p.plan.ai.model}) + rules` : 'Planned with transparent rules'}
+          <Bot size={14} /> {p.plan.source === 'ai' ? `Planned with AI (${p.plan.ai.model}) + rules` : 'Planned with transparent rules'}
         </span>
       </div>
       <div className="mb-6 space-y-2">

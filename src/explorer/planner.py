@@ -45,6 +45,24 @@ demographic_columns: columns describing population groups (sex, gender, race, et
 identifier_columns: columns that identify a person or record (IDs, record numbers).
 Return only JSON: {"outcome": string|null, "demographic_columns": [string], "identifier_columns": [string],
 "reasons": {"outcome": string, "demographic_columns": string, "identifier_columns": string}}"""
+_STRINGS = {'type': 'array', 'items': {'type': 'string'}}
+# Enforced by providers with structured outputs (Claude); the plan is still validated below.
+PLAN_SCHEMA = {
+    'type': 'object',
+    'properties': {
+        'outcome': {'anyOf': [{'type': 'string'}, {'type': 'null'}]},
+        'demographic_columns': _STRINGS,
+        'identifier_columns': _STRINGS,
+        'reasons': {
+            'type': 'object',
+            'properties': {k: {'type': 'string'} for k in ('outcome', 'demographic_columns', 'identifier_columns')},
+            'required': ['outcome', 'demographic_columns', 'identifier_columns'],
+            'additionalProperties': False,
+        },
+    },
+    'required': ['outcome', 'demographic_columns', 'identifier_columns', 'reasons'],
+    'additionalProperties': False,
+}
 
 
 def _words(text: str) -> set:
@@ -144,7 +162,7 @@ def _ai_plan(columns: List[dict], idea: dict, model: str) -> dict:
     user = (f"Research question: {idea.get('question', '')}\nOutcome of interest: {idea.get('outcome', '')}\n"
             f"Population: {idea.get('population', '')}\nGroups of concern: {idea.get('groups', '')}\n\n"
             f"Columns:\n{listing}")
-    return llm.chat_json(SYSTEM, user, model=model)
+    return llm.chat_json(SYSTEM, user, model=model, schema=PLAN_SCHEMA)
 
 
 def build_plan(columns: List[dict], idea: dict, *, use_ai: bool = True, model: str = llm.DEFAULT_MODEL,
@@ -162,23 +180,23 @@ def build_plan(columns: List[dict], idea: dict, *, use_ai: bool = True, model: s
             demo = [c for c in raw.get('demographic_columns') or [] if c in names]
             ids = [c for c in raw.get('identifier_columns') or [] if c in names]
             if isinstance(outcome, str) and outcome in names and outcome not in demo + ids:
-                plan['outcome'] = {'column': outcome, 'reason': str(reasons.get('outcome') or 'suggested by the local AI'),
+                plan['outcome'] = {'column': outcome, 'reason': str(reasons.get('outcome') or 'suggested by the AI model'),
                                    'source': 'ai'}
                 ai['used'] = True
             if demo:
                 rule_reasons = {d['column']: d['reason'] for d in plan['demographics']}
                 plan['demographics'] = [{'column': c, 'source': 'ai' if c not in rule_reasons else 'ai+rules',
-                                         'reason': rule_reasons.get(c) or str(reasons.get('demographic_columns') or 'suggested by the local AI')}
+                                         'reason': rule_reasons.get(c) or str(reasons.get('demographic_columns') or 'suggested by the AI model')}
                                         for c in dict.fromkeys(demo) if c != plan['outcome']['column']]
                 ai['used'] = True
             if ids:
                 known = {i['column'] for i in plan['identifiers']}
-                plan['identifiers'] += [{'column': c, 'reason': str(reasons.get('identifier_columns') or 'suggested by the local AI'),
+                plan['identifiers'] += [{'column': c, 'reason': str(reasons.get('identifier_columns') or 'suggested by the AI model'),
                                          'source': 'ai'} for c in ids if c not in known
                                         and c != plan['outcome']['column']]
                 ai['used'] = True
             if not ai['used']:
-                ai['error'] = 'The local AI did not name usable columns; rule-based suggestions are shown.'
+                ai['error'] = 'The AI model did not name usable columns; rule-based suggestions are shown.'
         except llm.LLMUnavailable as exc:
             ai['error'] = str(exc)
     demographics = [d['column'] for d in plan['demographics']]

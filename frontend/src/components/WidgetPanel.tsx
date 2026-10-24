@@ -41,12 +41,12 @@ export function ExplainBox({ widget, results, onExplain, aiOn }: { widget: strin
       <button className="btn-outline" onClick={run} disabled={busy}>
         {aiOn ? <Bot size={16} /> : <Sparkles size={16} />}{busy ? 'Explaining…' : 'Explain this view'}
       </button>
-      {busy && <Spinner label={aiOn ? 'Asking the local model (can take ~15 s)…' : 'Summarising…'} />}
+      {busy && <Spinner label={aiOn ? 'Asking the AI model…' : 'Summarising…'} />}
       {error && <Note tone="warn">{error}</Note>}
       {explanation && (
         <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 animate-rise">
           <div className="eyebrow mb-1 flex items-center gap-2">
-            {explanation.source === 'ai' ? <><Bot size={14} /> Local model wording · unverified, numbers are computed</> : <><Sparkles size={14} /> Rule-based summary from computed values</>}
+            {explanation.source === 'ai' ? <><Bot size={14} /> AI wording · unverified, numbers are computed</> : <><Sparkles size={14} /> Rule-based summary from computed values</>}
           </div>
           <p className="font-semibold text-ink-900">{explanation.summary}</p>
           <ul className="mt-1 list-disc pl-5 text-sm text-ink-700">{explanation.points.map((p: string, i: number) => <li key={i}>{p}</li>)}</ul>

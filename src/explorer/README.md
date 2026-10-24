@@ -21,8 +21,22 @@ cd frontend; npm install; npm run build; cd ..
 
 Open http://127.0.0.1:8600. Stop with `Ctrl + C`.
 
-Optional AI: run Ollama with `llama3.2:3b` (`ollama pull llama3.2:3b`). Without it, or with "Local AI" turned
-off in the header, the app uses rule-based planning and summaries and says so.
+## Optional AI
+
+Everything works without AI; planning and summaries then use transparent rules. Choose a provider with
+environment variables:
+
+| Setting | Local (default) | Groq (Llama) | Claude |
+|---|---|---|---|
+| `MEDGUARD_AI_PROVIDER` | `ollama` | `openai` | `anthropic` |
+| `MEDGUARD_AI_MODEL` | `llama3.2:3b` | `llama-3.1-8b-instant` | `claude-opus-5-5` (or `claude-haiku-5-5`) |
+| `MEDGUARD_AI_BASE_URL` | – | `https://api.groq.com/openai/v1` | – |
+| `MEDGUARD_AI_API_KEY` | – | your Groq key | your Anthropic key |
+
+Locally, run Ollama with `llama3.2:3b` (`ollama pull llama3.2:3b`). Any OpenAI-compatible endpoint works with
+`openai` by changing the base URL. Claude requests use structured outputs, low effort, and server-side
+refusal fallbacks on models that support them. A public server (`MEDGUARD_PUBLIC=1`) never uses a local
+Ollama model; it uses a hosted provider when one is configured, and says which in the header and banner.
 
 Front-end development with hot reload: keep the server running, then `cd frontend && npm run dev` and open
 http://127.0.0.1:5173 (API calls are proxied to port 8600).
@@ -54,7 +68,8 @@ http://127.0.0.1:5173 (API calls are proxied to port 8600).
 
 ## Privacy and honesty rules
 
-- The local AI receives column names, the research text, and aggregate counts - never cell values.
+- The AI (local or hosted) receives column names, the research text, and aggregate counts - never rows or
+  cell values. With a hosted provider, that text leaves the server; the public banner says so.
 - AI text is labelled unverified and replaced when it makes claims outside the computed facts.
 - Status chips use the contract vocabulary. Nothing is shown as a green pass; "no patterns found" is not
   de-identification. Tangerine marks review evidence only.

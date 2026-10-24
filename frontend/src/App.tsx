@@ -78,7 +78,7 @@ export default function App() {
   }
 
   const makePlan = async () => {
-    setLoading(aiOn ? 'Planning with the local model and rules (can take ~20 s)…' : 'Planning…'); setError(null)
+    setLoading(aiOn ? (health?.ai?.provider === 'Local' ? 'Planning with the local model and rules (can take ~20 s)…' : `Planning with ${health?.ai?.provider} and rules…`) : 'Planning…'); setError(null)
     try {
       const p = await api.plan(dataset.dataset_id, idea, aiOn)
       setPlan(p)
@@ -185,6 +185,7 @@ export default function App() {
         <div className="border-b border-review-200 bg-review-50 px-4 py-2 text-center text-sm text-review-700" role="note">
           <b>Public demo.</b> Use the bundled synthetic datasets or data that is already de-identified; do not upload patient records.
           Files are processed in this server's memory, never written to disk, kept apart from other visitors, and deleted after {health.retention_minutes} minutes.
+          {health.ai?.available && ` AI suggestions and explanations, when on, send the research question, column names and aggregate counts (never rows) to ${health.ai.provider}.`}
         </div>
       )}
       {error && <div className="mx-auto max-w-[1500px] px-6 pt-4"><Note tone="warn">{error}</Note></div>}

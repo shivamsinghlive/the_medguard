@@ -4,8 +4,8 @@ Every response is computed from the dataset loaded in this process with the
 deterministic services; nothing is precomputed or hard-coded.
 
 Locally it binds to 127.0.0.1. As a public demo (MEDGUARD_PUBLIC=1) each visitor
-gets a private session, datasets expire after SESSION_TTL_SECONDS, and the local
-AI is off. MEDGUARD_HOST and PORT choose where it listens; MEDGUARD_MAX_UPLOAD_MB,
+gets a private session and datasets expire after SESSION_TTL_SECONDS. The local
+Ollama model is never used there; a hosted provider configured in llm.py can be. MEDGUARD_HOST and PORT choose where it listens; MEDGUARD_MAX_UPLOAD_MB,
 MEDGUARD_MAX_ROWS, and MEDGUARD_MAX_SESSIONS keep memory within small hosting plans.
 """
 from collections import OrderedDict
@@ -58,6 +58,11 @@ _SESSIONS: 'OrderedDict[str, dict]' = OrderedDict()  # session id -> {'seen', 'd
 
 def public_mode() -> bool:
     return os.environ.get('MEDGUARD_PUBLIC') == '1'
+
+
+def ai_allowed() -> bool:
+    """A public server never reaches for a local Ollama model; hosted providers are fine."""
+    return not (public_mode() and llm.is_local())
 
 
 def _session_id(request: Optional[Request]) -> str:
@@ -258,8 +263,9 @@ def _preview_response(entry: dict) -> dict:
 
 @app.get('/api/health')
 def health():
-    ai = ({'available': False, 'model': llm.DEFAULT_MODEL, 'reason': 'The local model is not part of the public demo.'}
-          if public_mode() else llm.status())
+    ai = (llm.status() if ai_allowed() else
+          {'available': False, 'model': llm.DEFAULT_MODEL, 'provider': llm.provider_label(),
+           'reason': 'No hosted AI provider is configured for this public demo.'})
     return {'ok': True, 'ai': ai, 'settings': DEFAULT_SETTINGS, 'widgets': planner.WIDGETS,
             'titles': insights.TITLES, 'missing_label': MISSING_LABEL,
             'public': public_mode(), 'retention_minutes': SESSION_TTL_SECONDS // 60,
@@ -299,7 +305,7 @@ def plan(req: PlanRequest, request: Request):
                   if profile['kind'] == 'categorical' and profile['distinct'] <= 100 else None)
         columns.append({'name': str(c), 'labels': labels,
                         **{k: v for k, v in profile.items() if k in ('kind', 'distinct', 'id_like', 'top')}})
-    return planner.build_plan(columns, req.idea.model_dump(), use_ai=req.use_ai and not public_mode())
+    return planner.build_plan(columns, req.idea.model_dump(), use_ai=req.use_ai and ai_allowed())
 
 
 @app.post('/api/analyze')
@@ -312,7 +318,7 @@ def explain(req: ExplainRequest, request: Request):
     if req.widget not in insights.TITLES:
         raise HTTPException(422, 'Unknown widget.')
     results = _analyze(req, request)
-    return insights.explain(req.widget, results, req.idea.model_dump(), use_ai=req.use_ai and not public_mode())
+    return insights.explain(req.widget, results, req.idea.model_dump(), use_ai=req.use_ai and ai_allowed())
 
 
 @app.post('/api/preview')

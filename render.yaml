@@ -16,3 +16,14 @@ services:
         value: "50000"
       - key: MEDGUARD_MAX_SESSIONS
         value: "30"
+      # Hosted AI. Groq (OpenAI-compatible, Llama) by default; for Claude set the provider to
+      # "anthropic" and the model to a Claude model ID. The key is entered in the Render
+      # dashboard and never stored in this repository.
+      - key: MEDGUARD_AI_PROVIDER
+        value: openai
+      - key: MEDGUARD_AI_BASE_URL
+        value: https://api.groq.com/openai/v1
+      - key: MEDGUARD_AI_MODEL
+        value: llama-3.1-8b-instant
+      - key: MEDGUARD_AI_API_KEY
+        sync: false

@@ -45,10 +45,10 @@ export default function Header({ step, onStep, maxStep, ai, useAi, onToggleAi, o
 
         <div className="flex flex-wrap items-center gap-1 sm:gap-2">
           <button onClick={onToggleAi} disabled={!aiReady}
-            title={aiReady ? 'Use the local model for planning and explanations' : ai?.reason ?? 'Checking local AI'}
+            title={aiReady ? `Use ${ai.provider === 'Local' ? 'the local model' : ai.provider} for planning and explanations` : ai?.reason ?? 'Checking AI'}
             className={`chip !py-1.5 ${aiReady && useAi ? 'border-brand-200 bg-brand-50 text-brand-700' : 'border-slate-200 bg-slate-50 text-ink-500'}`}>
             <Bot size={14} />
-            <span className="hidden sm:inline">{aiReady ? (useAi ? `Local AI on · ${ai.model}` : 'Local AI off') : 'AI unavailable · rule-based mode'}</span>
+            <span className="hidden sm:inline">{aiReady ? (useAi ? `${ai.provider === 'Local' ? 'Local AI' : 'AI'} on · ${ai.provider === 'Local' ? '' : ai.provider + ' · '}${ai.model}` : 'AI off') : 'AI unavailable · rule-based mode'}</span>
           </button>
           {onTour && <button className="btn-ghost" onClick={onTour} title="Take the guided tour" aria-label="Tour"><Compass size={16} /><span className="hidden sm:inline">Tour</span></button>}
           <input ref={fileRef} type="file" accept="application/json" hidden

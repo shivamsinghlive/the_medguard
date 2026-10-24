@@ -297,6 +297,14 @@ Do not recommend SMOTE or oversampling. Be concrete with the numbers given. Plai
 Mention only groups, columns, and numbers that appear in the facts; never add groups from the research question.
 The facts describe this one panel. Never say data is missing unless "focus_groups_with_no_rows" says so.
 Return only JSON: {"summary": string, "points": [string, up to 4], "caution": string}"""
+# Enforced by providers with structured outputs (Claude); the answer is still checked below.
+EXPLAIN_SCHEMA = {
+    'type': 'object',
+    'properties': {'summary': {'type': 'string'}, 'points': {'type': 'array', 'items': {'type': 'string'}},
+                   'caution': {'type': 'string'}},
+    'required': ['summary', 'points', 'caution'],
+    'additionalProperties': False,
+}
 
 
 def explain(widget: str, results: dict, idea: dict, *, use_ai: bool = True, model: str = llm.DEFAULT_MODEL,
@@ -307,10 +315,11 @@ def explain(widget: str, results: dict, idea: dict, *, use_ai: bool = True, mode
     import json
     try:
         raw = (chat or llm.chat_json)(SYSTEM, f"Research question: {idea.get('question', '')}\n"
-                                              f"Facts: {json.dumps(facts(widget, results))}", model=model)
+                                              f"Facts: {json.dumps(facts(widget, results))}", model=model,
+                                     schema=EXPLAIN_SCHEMA)
         summary, points, caution = raw.get('summary'), raw.get('points'), raw.get('caution')
         if not isinstance(summary, str) or not isinstance(points, list) or not all(isinstance(p, str) for p in points):
-            raise llm.LLMUnavailable('The local model returned an unexpected shape.')
+            raise llm.LLMUnavailable('The AI model returned an unexpected shape.')
         text = ' '.join([summary, caution or ''] + points)
         widget_facts = facts(widget, results)
         claims_absence = re.search(r"\b(no|lack of|missing|absent|without)\s+(data|rows|records|information|cases)\b", text, re.I)
