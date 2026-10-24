@@ -34,11 +34,13 @@ export default function Chart({ option, height = 300, label, onPick, zoom, brush
           dataBackground: { lineStyle: { color: token('slate-300') }, areaStyle: { color: token('slate-200') } },
           textStyle: { color: token('ink-500') }, showDetail: false },
       ])
-      extra.grid = { ...(option.grid ?? { left: 8, right: 16, top: 36, containLabel: true }),
-        bottom: axes.includes('x') ? 34 : option.grid?.bottom ?? 8, right: axes.includes('y') ? 30 : option.grid?.right ?? 16 }
+      // Leave room for the sliders below any axis title the chart already reserves space for.
+      const grid = option.grid ?? { left: 8, right: 16, top: 36, bottom: 8, containLabel: true }
+      extra.grid = { ...grid, bottom: (grid.bottom ?? 8) + (axes.includes('x') ? 28 : 0), right: (grid.right ?? 16) + (axes.includes('y') ? 22 : 0) }
     }
     if (brush) {
-      extra.brush = { brushType: brush.type, brushMode: 'single', xAxisIndex: brush.type === 'lineX' ? 0 : undefined,
+      // Binding to the axes makes brush events report data coordinates (coordRange).
+      extra.brush = { brushType: brush.type, brushMode: 'single', xAxisIndex: 0, ...(brush.type === 'lineX' ? {} : { yAxisIndex: 0 }),
         throttleType: 'debounce', throttleDelay: 200, removeOnClick: true,
         brushStyle: { borderWidth: 1, color: token('brand-500', 0.12), borderColor: token('brand-500', 0.7) },
         outOfBrush: { colorAlpha: 0.25 } }
