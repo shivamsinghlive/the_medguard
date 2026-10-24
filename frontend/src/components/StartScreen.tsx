@@ -22,13 +22,21 @@ type Props = {
   rejected: any
 }
 
+const MIN_QUESTION = 6
 const pretty = (name: string) => name.replace(/\.csv$/, '').replace(/^dataset\d_/, '').replace(/_/g, ' ')
 
 export default function StartScreen({ idea, setIdea, demos, dataset, loading, onDemo, onUpload, onPlan, rejected }: Props) {
   const [dragging, setDragging] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
   const set = (k: keyof Idea) => (e: any) => setIdea({ ...idea, [k]: e.target.value })
-  const ready = idea.question.trim().length > 5 && dataset?.accepted
+  const questionLength = idea.question.trim().length
+  const questionShort = questionLength > 0 && questionLength < MIN_QUESTION
+  // Say exactly what still blocks planning instead of a generic hint.
+  const missing: string[] = []
+  if (questionLength === 0) missing.push('Write a research question.')
+  else if (questionShort) missing.push(`Make the research question at least ${MIN_QUESTION} characters (${MIN_QUESTION - questionLength} more).`)
+  if (!dataset?.accepted) missing.push(rejected ? 'Load a dataset that passes the file check.' : 'Load a CSV or choose a bundled dataset.')
+  const ready = missing.length === 0
 
   return (
     <div className="mx-auto max-w-[1500px] px-6 py-8">
@@ -57,7 +65,14 @@ export default function StartScreen({ idea, setIdea, demos, dataset, loading, on
               <label className="label" htmlFor="q">Research question *</label>
               <textarea id="q" rows={3} className="field resize-none"
                 placeholder="What do you want to predict or understand, and for whom?"
+                aria-describedby={questionShort ? 'q-hint' : undefined}
                 value={idea.question} onChange={set('question')} />
+              {questionShort && (
+                <p id="q-hint" className="mt-1 text-xs text-review-700">
+                  A little more detail, please: {MIN_QUESTION - questionLength} more character{MIN_QUESTION - questionLength === 1 ? '' : 's'}.
+                  For example, “Can we predict heart disease reliably for women?”
+                </p>
+              )}
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
@@ -164,8 +179,13 @@ export default function StartScreen({ idea, setIdea, demos, dataset, loading, on
       </div>
 
       <div className="mt-6 flex flex-wrap items-center justify-end gap-3">
-        {!ready && <span className="text-sm text-ink-500">Add a research question and load a dataset to continue.</span>}
-        <button className="btn-primary !px-6 !py-3 text-base" disabled={!ready || !!loading} onClick={onPlan}>
+        {!ready && (
+          <ul id="plan-blockers" className="text-right text-sm text-ink-500" aria-live="polite">
+            {missing.map((m) => <li key={m}>{m}</li>)}
+          </ul>
+        )}
+        <button className="btn-primary !px-6 !py-3 text-base" disabled={!ready || !!loading} onClick={onPlan}
+          aria-describedby={ready ? undefined : 'plan-blockers'}>
           <Sparkles size={18} /> Plan my analysis <ArrowRight size={18} />
         </button>
       </div>
