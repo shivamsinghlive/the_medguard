@@ -128,7 +128,7 @@ MedGuard currently does not:
 
 Supported change previews include exact-duplicate removal, missing-row rules on selected features, median or constant missing-value fills, whitespace trimming, and feature-column removal. Any blocked action blocks the complete change set, so the UI never presents a partial result as ready.
 
-The optional explainer receives only minimized aggregate evidence. It uses a controlled focus, an eight-second timeout, structured-output checks, unsupported-claim filters, and a deterministic fallback. Successful responses are cached by dataset fingerprint, evidence digest, focus, model, prompt version, and schema version. Source-grounded RAG remains disabled because the W04 source inventory is not present on `main`.
+The optional explainer receives only minimized aggregate evidence. It uses a controlled focus, an eight-second timeout, structured-output checks, unsupported-claim filters, and a deterministic fallback. Successful responses are cached by dataset fingerprint, evidence digest, focus, model, prompt version, and schema version. W04 added a reviewed source inventory, which the workspace now presents as deterministic context cards. Source-grounded RAG remains disabled because embedding and retrieval have not passed an end-to-end test.
 
 ## Project provenance and event eligibility
 

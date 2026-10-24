@@ -3,7 +3,7 @@
 The active audit never calls this module automatically. Prompt construction
 uses an explicit allowlist of aggregate counts and statuses, excluding records,
 cell values, group labels, column names, and file names. Source-grounded RAG is
-deliberately absent until a reviewed source inventory is merged.
+deliberately absent until embedding and retrieval pass an end-to-end test.
 """
 
 from __future__ import annotations
@@ -357,7 +357,7 @@ def generate_explanation(
         "limitations": [
             "This optional explanation is not audit evidence and must be reviewed by a person.",
             "Original records, cell values, group labels, column names, and file names are excluded from the prompt.",
-            "Source-grounded RAG is disabled until a reviewed knowledge-source inventory is available.",
+            "Reviewed sources exist, but source-grounded RAG is disabled until retrieval is verified end to end.",
         ],
     }
     json.dumps(result, allow_nan=False)
