@@ -24,10 +24,10 @@ def test_guided_demo_uses_live_descriptive_service(monkeypatch):
     assert not app.text_area
     assert [m.value for m in app.metric if m.label == "Records"] == ["1,200"]
     assert [m.value for m in app.metric if m.label == "Attributes assessed"] == ["1"]
-    assert [m.value for m in app.metric if m.label == "Review flags"] == ["0"]
-    assert [m.value for m in app.metric if m.label == "Performance"] == ["Not measured"]
+    assert [m.value for m in app.metric if m.label == "Representation flags"] == ["0"]
+    assert [m.value for m in app.metric if m.label == "Identifier signals"]
     assert {tab.label for tab in app.tabs} == {
-        "Overview", "Cohort evidence", "Data quality", "Data preview"
+        "Overview", "Cohort evidence", "Identifier screening", "Data quality", "Data preview"
     }
     assert app.multiselect[0].value == ["sex"]
     assert not any("Implement Changes" in button.label for button in app.button)
@@ -38,6 +38,7 @@ def test_guided_demo_uses_live_descriptive_service(monkeypatch):
     assert "Live guided demo" in page_text
     assert "No rule-based review flags" in page_text
     assert "Automatic mitigation is disabled" in page_text
+    assert "screening result, not privacy clearance" in page_text
     assert "fixed v1 contract fixture" not in page_text
     assert "FAIR" not in page_text
 
@@ -47,7 +48,7 @@ def test_large_reference_gap_remains_descriptive(monkeypatch):
     app.checkbox[0].check().run(timeout=30)
 
     assert not app.exception
-    assert [m.value for m in app.metric if m.label == "Review flags"] == ["0"]
+    assert [m.value for m in app.metric if m.label == "Representation flags"] == ["0"]
     page_text = " ".join(item.value for item in app.markdown)
     assert "does not apply a universal" in page_text
 

@@ -14,6 +14,7 @@ from typing import Mapping, Optional, Sequence
 
 import pandas as pd
 
+from services.privacy_screening import screen_identifiers
 from services.representation import analyze_representation
 from utils.audit_input import dataset_fingerprint
 
@@ -27,10 +28,24 @@ def run_audit(
     demographic_columns: Sequence[str],
     reference_proportions: Optional[Mapping] = None,
     source_type: str,
+    input_validation: dict,
 ) -> dict:
-    """Run deterministic evidence available before W02 screening lands."""
+    """Package evidence from the validated frame without changing it.
+
+    Upload callers must pass the validation result returned alongside ``df`` by
+    ``validate_input``. Requiring it here prevents a rejected or independently
+    re-parsed file from quietly reaching analysis.
+    """
+
+    if input_validation.get("status") != "accepted":
+        raise ValueError("run_audit requires an accepted input-validation result.")
+    if input_validation.get("row_count") != len(df):
+        raise ValueError("The validated row count does not match the analysis frame.")
+    if input_validation.get("column_count") != len(df.columns):
+        raise ValueError("The validated column count does not match the analysis frame.")
 
     before = dataset_fingerprint(df)
+    identifier_screening = screen_identifiers(df)
     representation = analyze_representation(
         df,
         demographic_columns=demographic_columns,
@@ -53,6 +68,7 @@ def run_audit(
             "row_count": int(len(df)),
             "column_count": int(len(df.columns)),
         },
+        "input_validation": input_validation,
         "quality": {
             "missing_cells": int(df.isna().sum().sum()),
             "columns_with_missing_values": len(missing_by_column),
@@ -60,11 +76,7 @@ def run_audit(
             "duplicate_rows": int(df.duplicated(keep=False).sum()),
         },
         "representation": representation,
-        "identifier_screening": {
-            "status": "not_run",
-            "reason": "W02 identifier screening is not integrated yet.",
-            "certifies_deidentification": False,
-        },
+        "identifier_screening": identifier_screening,
         "model_performance": {
             "status": "not_measured",
             "reason": (
@@ -144,4 +156,29 @@ def report_csv(report: dict) -> str:
                 "suggested_action": finding["suggested_action"],
             }
         )
+    screening = report["identifier_screening"]
+    for finding in screening["findings"]:
+        writer.writerow(
+            {
+                "row_type": "identifier_finding",
+                "column": finding["column"],
+                "status": screening["status"],
+                "code": finding["code"],
+                "priority": finding["priority"],
+                "title": finding["title"],
+                "summary": finding_summary(finding),
+                "suggested_action": finding["suggested_action"],
+            }
+        )
+    validation = report["input_validation"]
+    for issue_type in ("errors", "warnings"):
+        for issue in validation[issue_type]:
+            writer.writerow(
+                {
+                    "row_type": f"validation_{issue_type[:-1]}",
+                    "status": validation["status"],
+                    "code": issue["code"],
+                    "title": issue["message"],
+                }
+            )
     return output.getvalue()

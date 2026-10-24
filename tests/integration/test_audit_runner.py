@@ -13,13 +13,18 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src"))
 
 from services.audit_runner import finding_summary, report_csv, report_json, run_audit
+from services.input_validation import validate_input
 from utils.audit_input import dataset_fingerprint
 
 
-def test_runner_preserves_source_and_packages_unknown_states():
-    frame = pd.DataFrame(
-        {"sex": ["Male", "Female", "Female", None], "outcome": [1, 0, 1, 0]}
-    )
+def accepted_result(frame):
+    return {"status": "accepted", "row_count": len(frame), "column_count": len(frame.columns),
+            "byte_count": 0, "limits": {}, "errors": [], "warnings": [], "limitations": []}
+
+
+def test_validated_bytes_feed_the_exact_checked_frame_to_the_runner():
+    raw = b"sex,outcome,notes\nMale,1,ok\nFemale,0,contact person@example.org\nFemale,1,ok\n,0,ok\n"
+    validation, frame = validate_input(raw)
     before = frame.copy(deep=True)
     fingerprint = dataset_fingerprint(frame)
 
@@ -27,6 +32,7 @@ def test_runner_preserves_source_and_packages_unknown_states():
         frame,
         demographic_columns=["sex"],
         source_type="test_fixture",
+        input_validation=validation,
     )
 
     pd.testing.assert_frame_equal(frame, before)
@@ -38,7 +44,9 @@ def test_runner_preserves_source_and_packages_unknown_states():
         "duplicate_rows": 0,
     }
     assert report["representation"]["status"] == "descriptive_only"
-    assert report["identifier_screening"]["status"] == "not_run"
+    assert report["input_validation"] == validation
+    assert report["identifier_screening"]["status"] == "review_needed"
+    assert any(f["code"] == "email_pattern" for f in report["identifier_screening"]["findings"])
     assert report["identifier_screening"]["certifies_deidentification"] is False
     assert report["model_performance"]["status"] == "not_measured"
 
@@ -65,6 +73,7 @@ def test_runner_accepts_all_w01_finding_codes_without_summary_field():
             demographic_columns=["group"],
             reference_proportions=reference,
             source_type="test_fixture",
+            input_validation=accepted_result(frame),
         )
         for finding in report["representation"]["findings"]:
             summary = finding_summary(finding)
@@ -82,6 +91,7 @@ def test_gap_is_exported_without_becoming_a_flag():
         demographic_columns=["sex"],
         reference_proportions={"sex": {"Male": 0.5, "Female": 0.5}},
         source_type="test_fixture",
+        input_validation=accepted_result(frame),
     )
     assert report["representation"]["status"] == "descriptive_only"
     assert report["representation"]["findings"] == []
@@ -101,8 +111,30 @@ def test_single_group_with_reference_keeps_both_findings_in_export():
         demographic_columns=["sex"],
         reference_proportions={"sex": {"Male": 0.5, "Female": 0.5}},
         source_type="test_fixture",
+        input_validation=accepted_result(pd.DataFrame({"sex": ["Male"] * 100})),
     )
     codes = [finding["code"] for finding in report["representation"]["findings"]]
     assert codes == ["single_group", "missing_reference_group"]
     rows = list(csv.DictReader(io.StringIO(report_csv(report))))
     assert {row["code"] for row in rows if row["row_type"] == "finding"} == set(codes)
+
+
+def test_runner_rejects_unvalidated_or_mismatched_input():
+    frame = pd.DataFrame({"sex": ["F", "M"]})
+    rejected = {"status": "rejected", "row_count": None, "column_count": None}
+    import pytest
+    with pytest.raises(ValueError, match="accepted"):
+        run_audit(frame, demographic_columns=["sex"], source_type="test", input_validation=rejected)
+    wrong_shape = {"status": "accepted", "row_count": 99, "column_count": 1}
+    with pytest.raises(ValueError, match="row count"):
+        run_audit(frame, demographic_columns=["sex"], source_type="test", input_validation=wrong_shape)
+
+
+def test_csv_export_includes_identifier_findings():
+    validation, frame = validate_input(b"sex,notes\nF,ok\nM,call 617-555-0100\n")
+    report = run_audit(frame, demographic_columns=["sex"], source_type="test",
+                       input_validation=validation)
+    rows = list(csv.DictReader(io.StringIO(report_csv(report))))
+    privacy_rows = [row for row in rows if row["row_type"] == "identifier_finding"]
+    assert [row["code"] for row in privacy_rows] == ["phone_pattern"]
+    assert report["identifier_screening"]["certifies_deidentification"] is False

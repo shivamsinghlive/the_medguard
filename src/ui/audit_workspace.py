@@ -15,6 +15,7 @@ sys.path.insert(0, str(SRC_DIR))
 
 from services.audit_runner import finding_summary, report_csv, report_json, run_audit
 from services.contracts import RepresentationInputError
+from services.input_validation import validate_input
 
 
 DEMO_PATH = PROJECT_DIR / "data/synthetic/dataset2_diabetes_gender_bias.csv"
@@ -22,6 +23,11 @@ PRIORITY_LABELS = {"high": "Review first", "medium": "Review next", "low": "Cont
 STATUS_LABELS = {
     "review_needed": "Review needed",
     "descriptive_only": "Descriptive only",
+    "insufficient_evidence": "Insufficient evidence",
+}
+SCREENING_STATUS_LABELS = {
+    "review_needed": "Potential identifiers need review",
+    "no_patterns_found": "No listed patterns found",
     "insufficient_evidence": "Insufficient evidence",
 }
 
@@ -125,7 +131,7 @@ st.markdown(
 
 
 if source == "Guided demo":
-    data = pd.read_csv(DEMO_PATH)
+    validation, data = validate_input(DEMO_PATH.read_bytes())
     source_label = "Synthetic diabetes cohort"
     source_type = "bundled_synthetic_demo"
     st.markdown(
@@ -139,18 +145,25 @@ else:
     if uploaded is None:
         st.info("Choose a CSV to assign column roles and run deterministic representation analysis.")
         st.stop()
-    try:
-        data = pd.read_csv(uploaded)
-    except Exception:
-        st.error("This file could not be read as CSV. Check its format and encoding.")
+    validation, data = validate_input(uploaded.getvalue())
+    if validation["status"] == "rejected":
+        st.error("This CSV was rejected before analysis.")
+        for issue in validation["errors"]:
+            st.write(f"- {issue['message']}")
         st.stop()
     source_label = uploaded.name
     source_type = "uploaded_csv"
-    st.markdown(
-        '<div class="mg-warning"><strong>Identifier screening has not run.</strong> W02 is '
-        'not integrated yet. Use de-identified test data; this release does not certify privacy.</div>',
-        unsafe_allow_html=True,
-    )
+
+if data is None:
+    st.error("No validated table is available for analysis.")
+    st.stop()
+if validation["warnings"]:
+    for warning in validation["warnings"]:
+        st.warning(warning["message"])
+st.caption(
+    f"Input accepted: {validation['byte_count']:,} bytes, {validation['row_count']:,} rows, "
+    f"{validation['column_count']:,} columns. Limits: 25 MB, 200,000 rows, 500 columns."
+)
 
 
 st.markdown("## Review scope")
@@ -197,6 +210,7 @@ try:
         demographic_columns=demographic_columns,
         reference_proportions=reference_for_demo(use_demo_reference, demographic_columns),
         source_type=source_type,
+        input_validation=validation,
     )
 except RepresentationInputError as error:
     st.error(f"Representation analysis could not run: {error}")
@@ -204,22 +218,23 @@ except RepresentationInputError as error:
 
 representation = report["representation"]
 quality = report["quality"]
+screening = report["identifier_screening"]
 
 st.divider()
 st.markdown(f"### {source_label}")
 metric_cols = st.columns(4)
 metric_cols[0].metric("Records", f"{report['dataset']['row_count']:,}")
 metric_cols[1].metric("Attributes assessed", len(representation["attributes"]))
-metric_cols[2].metric("Review flags", len(representation["findings"]))
-metric_cols[3].metric("Performance", "Not measured")
+metric_cols[2].metric("Representation flags", len(representation["findings"]))
+metric_cols[3].metric("Identifier signals", len(screening["findings"]))
 st.caption(
     f"Representation status: {STATUS_LABELS[representation['status']]}. "
     "This is an evidence state, not a fairness verdict."
 )
 
 
-overview_tab, cohorts_tab, quality_tab, data_tab = st.tabs(
-    ["Overview", "Cohort evidence", "Data quality", "Data preview"]
+overview_tab, cohorts_tab, privacy_tab, quality_tab, data_tab = st.tabs(
+    ["Overview", "Cohort evidence", "Identifier screening", "Data quality", "Data preview"]
 )
 
 with overview_tab:
@@ -238,7 +253,7 @@ with overview_tab:
     st.markdown("### What this review does not establish")
     for limitation in representation["limitations"]:
         st.write(f"- {limitation}")
-    st.write("- Potential identifier screening has not run; W02 integration is pending.")
+    st.write("- Identifier screening is heuristic and does not certify de-identification.")
 
 with cohorts_tab:
     if not representation["attributes"]:
@@ -273,6 +288,30 @@ with cohorts_tab:
         )
     with st.expander("Measured representation result"):
         st.json(representation)
+
+with privacy_tab:
+    st.markdown("### Potential identifier screening")
+    st.markdown(
+        '<div class="mg-warning"><strong>This is a screening result, not privacy clearance.</strong> '
+        'A result with no listed patterns does not establish HIPAA de-identification.</div>',
+        unsafe_allow_html=True,
+    )
+    st.write(f"**Status:** {SCREENING_STATUS_LABELS[screening['status']]}")
+    coverage = screening["coverage"]
+    st.caption(
+        f"Checked column names and values across {coverage['rows_scanned']:,} of "
+        f"{coverage['row_count']:,} rows and {coverage['column_count']:,} columns."
+    )
+    if screening["findings"]:
+        for finding in screening["findings"]:
+            priority_card(finding)
+    else:
+        st.info("None of the listed identifier patterns matched in the reported coverage.")
+    with st.expander("Scope and limitations"):
+        for limitation in screening["limitations"]:
+            st.write(f"- {limitation}")
+    with st.expander("Measured screening result"):
+        st.json(screening)
 
 with quality_tab:
     quality_cols = st.columns(3)
