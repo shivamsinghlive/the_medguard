@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from utils.phi_scanner import PHIScanner, PHIDetectedError
 from utils.data_quality import DataQualityAnalyzer
 from utils.bias_detection import BiasDetector
-from utils.synthetic_generator import SyntheticDataGenerator
+from utils.audit_input import dataset_fingerprint
 from agents.medical_advisor_v2 import MedicalAdvisorV2
 from agents.fairness_specialist import FairnessSpecialist
 from agents.deployment_strategist import DeploymentStrategist
@@ -418,9 +418,6 @@ if 'onboarding_complete' not in st.session_state:
 if 'analysis_complete' not in st.session_state:
     st.session_state.analysis_complete = False
 
-if 'download_synthetic' not in st.session_state:
-    st.session_state.download_synthetic = False
-
 if 'reset_counter' not in st.session_state:
     st.session_state.reset_counter = 0
 
@@ -429,7 +426,7 @@ if 'reset_counter' not in st.session_state:
 # ============================================================================
 
 st.markdown('<p class="main-header">🏥 MedGuard AI</p>', unsafe_allow_html=True)
-st.markdown('<p class="subheader">Multi-Agent Healthcare Data Validator with Privacy-Preserving Intelligence</p>', unsafe_allow_html=True)
+st.markdown('<p class="subheader">Healthcare Dataset Quality and Representation Review</p>', unsafe_allow_html=True)
 
 
 # ============================================================================
@@ -449,11 +446,11 @@ with st.sidebar:
     
     st.markdown("""
     <div class="success-box">
-    <strong>🔒 HIPAA Protection:</strong><br>
-    • Privacy-preserving synthetic data<br>
-    • Multi-stage PHI detection<br>
-    • Local processing only<br>
-    • Zero data transmission
+    <strong>Data handling:</strong><br>
+    • Measurements use the loaded records<br>
+    • Potential identifier screening<br>
+    • Original dataset preserved<br>
+    • Screening does not certify de-identification
     </div>
     """, unsafe_allow_html=True)
     
@@ -480,7 +477,6 @@ with st.sidebar:
         st.session_state.user_context = {}
         st.session_state.onboarding_complete = False
         st.session_state.analysis_complete = False
-        st.session_state.download_synthetic = False
         st.session_state.reset_counter = reset_count
         
         st.rerun()
@@ -638,8 +634,8 @@ if demo_option != "Upload Your Own":
         <strong>✅ Loaded:</strong> {demo_option}<br>
         📊 <strong>Records:</strong> {len(df):,} | <strong>Features:</strong> {len(df.columns)}<br>
         ⚠️ <strong>DEMO MODE:</strong> Using synthetic data for demonstration<br>
-        ✅ <strong>PHI Scan Passed</strong> - Dataset is properly de-identified<br>
-        🔒 <strong>Privacy Firewall Active</strong>
+        Potential identifier screening completed; this does not certify de-identification.<br>
+        Original records will be used for the audit.
         </div>
         """, unsafe_allow_html=True)
     else:
@@ -649,7 +645,7 @@ else:
     uploaded_file = st.file_uploader(
         "Upload your healthcare dataset (CSV)",
         type=['csv'],
-        help="Must be de-identified. Our tool will validate.",
+        help="Use de-identified data. Screening can miss identifiers and does not certify privacy.",
         label_visibility="collapsed"
     )
     
@@ -686,129 +682,31 @@ else:
     <div>
     ✅ <strong>File loaded successfully!</strong><br>
     📊 <strong>Records:</strong> {len(df):,} | <strong>Features:</strong> {len(df.columns)}<br>
-    ✅ <strong>PHI Scan Passed</strong> - Dataset is properly de-identified<br>
-    🔒 <strong>Privacy Firewall Active</strong> 
+    Potential identifier screening completed; this does not certify de-identification.<br>
+    Original records will be used for the audit.
     </div>
     """, unsafe_allow_html=True)
     
-    # ========================================================================
-    # GENERATE SYNTHETIC TWIN (PRIVACY FIREWALL)
-    # ========================================================================
+# Keep the source records intact. Every metric and change preview uses this snapshot.
+# Synthetic generation is intentionally outside the audit workflow.
+audit_df = df.copy(deep=True)
+dataset_hash = dataset_fingerprint(audit_df)
 
+st.markdown("## Dataset Analysis")
+st.caption(
+    "Measurements use the loaded dataset, without generating replacement records. "
+    "Proposed changes operate on a separate copy; the original is preserved."
+)
 
-# Add synthetic dataset generation controls
-col_generate1, col_generate2 = st.columns([3, 1])
-with col_generate1:
-    synthetic_size = st.slider(
-        "Synthetic dataset size",
-        min_value=100,
-        max_value=min(5000, len(df) * 3),
-        value=len(df),
-        step=100,
-        help="Number of synthetic records to generate"
-    )
-
-with col_generate2:
-    st.write("")
-    if st.button("📥 Download Synthetic", use_container_width=True):
-        st.session_state.download_synthetic = True
-
-# Cache synthetic dataset generation to avoid regenerating on every rerun
-# Create a hash based on original df and synthetic_size
-try:
-    # Try to use values hash for numeric data (faster)
-    df_hash = hash(str(df.values.tobytes()) + str(df.columns.tolist()) + str(len(df)) + str(df.shape))
-except (AttributeError, TypeError):
-    # Fallback: use string representation (works with all data types)
-    df_hash = hash(str(df.to_string()) + str(df.columns.tolist()) + str(len(df)) + str(df.shape))
-synthetic_cache_key = f"synthetic_df_{df_hash}_{synthetic_size}"
-
-# Check if we need to regenerate (only if df changed or size changed)
-if (synthetic_cache_key not in st.session_state or 
-    'synthetic_df' not in st.session_state or
-    'synthetic_validation' not in st.session_state):
-    
-    with st.spinner("⚙️ Generating synthetic twin..."):
-        generator = SyntheticDataGenerator()
-        generator.fit(df)
-        synthetic_df = generator.generate(n_samples=synthetic_size)
-        validation = generator.validate_privacy(df, synthetic_df)
-    
-    # Cache the synthetic dataset and validation
-    st.session_state.synthetic_df = synthetic_df
-    st.session_state.synthetic_validation = validation
-    st.session_state.synthetic_cache_key = synthetic_cache_key
-else:
-    # Use cached synthetic dataset (instant - no regeneration!)
-    synthetic_df = st.session_state.synthetic_df
-    validation = st.session_state.synthetic_validation
-
-# Continue with rest of the code...
-if validation['privacy_safe']:
-        similarity = validation['statistical_similarity']
-        st.write(f"✅ Synthetic twin generated | Statistical similarity: **{similarity:.1%}** ")
-        
-        # Download synthetic dataset if requested
-        if st.session_state.get('download_synthetic', False):
-            csv_data = synthetic_df.to_csv(index=False)
-            st.download_button(
-                label="💾 Download Synthetic CSV",
-                data=csv_data,
-                file_name=f"synthetic_dataset_{synthetic_size}_records.csv",
-                mime="text/csv",
-                use_container_width=True
-            )
-            st.success("✅ Click the button above to download your synthetic dataset!")
-            st.session_state.download_synthetic = False
-        
-        # Show sample comparison
-        with st.expander("📊 Compare Original vs Synthetic Data", expanded=False):
-            comp_col1, comp_col2 = st.columns(2)
-            
-            with comp_col1:
-                st.markdown("**Original Data (Sample)**")
-                st.dataframe(df.head(5), use_container_width=True)
-                
-            with comp_col2:
-                st.markdown("**Synthetic Data (Sample)**")
-                st.dataframe(synthetic_df.head(5), use_container_width=True)
-            
-            # Statistical comparison
-            st.markdown("**Statistical Comparison**")
-            
-            numeric_cols = df.select_dtypes(include=[np.number]).columns
-            if len(numeric_cols) > 0:
-                comparison_data = []
-                for col in numeric_cols[:5]:
-                    comparison_data.append({
-                        'Feature': col,
-                        'Original Mean': f"{df[col].mean():.2f}",
-                        'Synthetic Mean': f"{synthetic_df[col].mean():.2f}",
-                        'Original Std': f"{df[col].std():.2f}",
-                        'Synthetic Std': f"{synthetic_df[col].std():.2f}",
-                        'Similarity': f"{(1 - abs(df[col].mean() - synthetic_df[col].mean()) / df[col].mean() * 100):.1f}%" if df[col].mean() != 0 else "N/A"
-                    })
-                
-                comparison_df = pd.DataFrame(comparison_data)
-                st.dataframe(comparison_df, use_container_width=True)
-else:
-    st.warning("⚠️ Privacy validation concern - proceeding with caution")
-
-# ========================================================================
-# ANALYSIS WITH AI AGENTS
-# ========================================================================
-
-#Sst.divider()
-st.markdown("## 🤖 Step 5: Multi-Agent Analysis")
-
-# Cache analysis results to avoid rerunning on every widget interaction
-# Create a hash of the dataset to detect if it changed
-# Use a more robust hash that works with mixed data types
-try:
-    dataset_hash = hash(str(synthetic_df.values.tobytes()) + str(synthetic_df.columns.tolist()) + str(len(synthetic_df)))
-except (AttributeError, TypeError):
-    # Fallback for non-numeric data: use string representation
-    dataset_hash = hash(str(synthetic_df.to_string()) + str(synthetic_df.columns.tolist()) + str(len(synthetic_df)))
+# Discard results and selections belonging to a previously loaded dataset.
+if st.session_state.get('analysis_hash') != dataset_hash:
+    for key in list(st.session_state):
+        if key in {
+            'fairness_recommendations', 'cached_recommendations',
+            'cached_recommendations_grouped', 'selected_recommendations',
+            'modified_dataset', 'applied_changes', 'issues_hash', 'fairness_hash',
+        } or key.startswith('checkbox_'):
+            del st.session_state[key]
 
 # Check if we need to run analysis (only if dataset changed or results not cached)
 if ('analysis_hash' not in st.session_state or 
@@ -818,16 +716,16 @@ if ('analysis_hash' not in st.session_state or
     
     # Run Python analysis (only once per dataset)
     with st.spinner("🔬 Running comprehensive statistical analysis..."):
-        analyzer = DataQualityAnalyzer(synthetic_df)
+        analyzer = DataQualityAnalyzer(audit_df)
         quality_issues = analyzer.run_full_analysis()
         quality_summary = analyzer.get_summary()
         
         # Detect target column
-        possible_targets = [c for c in synthetic_df.columns 
+        possible_targets = [c for c in audit_df.columns
                           if any(t in c.lower() for t in ['disease', 'diabetes', 'outcome', 'target', 'recovered'])]
-        target_col = possible_targets[0] if possible_targets else synthetic_df.columns[-1]
+        target_col = possible_targets[0] if possible_targets else audit_df.columns[-1]
         
-        bias_detector = BiasDetector(synthetic_df, target_col=target_col)
+        bias_detector = BiasDetector(audit_df, target_col=target_col)
         bias_issues = bias_detector.run_full_analysis()
         bias_summary = bias_detector.get_summary()
     
@@ -1078,7 +976,8 @@ with tab1:
                         for i, rec in enumerate(info['recommendations'][:3], 1):
                             st.markdown(f"**{i}. {rec['method']}** {rec['priority']}")
                             st.write(f"💡 {rec['reason']}")
-                            st.code(rec['code'], language='python')
+                            if 'code' in rec:
+                                st.code(rec['code'], language='python')
                             if 'impact' in rec:
                                 st.caption(f"✨ Impact: {rec['impact']}")
                             if i < 3:
@@ -1294,7 +1193,7 @@ with tab2:
                             majority_pct = max(dist_values)
                             minority_pct = min(dist_values)
                             
-                            total = len(synthetic_df)
+                            total = len(audit_df)
                             majority_count = int(total * majority_pct / 100)
                             minority_count = int(total * minority_pct / 100)
                             samples_needed = majority_count - minority_count
@@ -1704,26 +1603,26 @@ with tab5:
         if implement_button and selected_count > 0:
             with st.spinner("⚙️ Implementing changes..."):
                 try:
-                    # Create a copy of the synthetic dataset
-                    modified_df = synthetic_df.copy()
+                    # Preview changes on a copy, preserving the loaded source records
+                    modified_df = audit_df.copy()
                     applied_changes = []
                     modified_columns = {}  # Track which columns were modified and how
                     
                     # Store original state BEFORE any modifications for accurate before/after comparison
                     original_state = {}
-                    for col in synthetic_df.columns:
-                        if pd.api.types.is_numeric_dtype(synthetic_df[col]):
+                    for col in audit_df.columns:
+                        if pd.api.types.is_numeric_dtype(audit_df[col]):
                             original_state[col] = {
-                                'missing': int(synthetic_df[col].isna().sum()),
-                                'mean': float(synthetic_df[col].mean()) if not synthetic_df[col].isna().all() else None,
-                                'min': float(synthetic_df[col].min()) if not synthetic_df[col].isna().all() else None,
-                                'max': float(synthetic_df[col].max()) if not synthetic_df[col].isna().all() else None,
-                                'std': float(synthetic_df[col].std()) if not synthetic_df[col].isna().all() else None
+                                'missing': int(audit_df[col].isna().sum()),
+                                'mean': float(audit_df[col].mean()) if not audit_df[col].isna().all() else None,
+                                'min': float(audit_df[col].min()) if not audit_df[col].isna().all() else None,
+                                'max': float(audit_df[col].max()) if not audit_df[col].isna().all() else None,
+                                'std': float(audit_df[col].std()) if not audit_df[col].isna().all() else None
                             }
                         else:
                             original_state[col] = {
-                                'missing': int(synthetic_df[col].isna().sum()),
-                                'value_counts': synthetic_df[col].value_counts().to_dict()
+                                'missing': int(audit_df[col].isna().sum()),
+                                'value_counts': audit_df[col].value_counts().to_dict()
                             }
                     
                     # Apply selected recommendations
@@ -2000,7 +1899,7 @@ with tab5:
                     st.markdown("### 📊 Modified Dataset Summary:")
                     
                     # Calculate actual changes
-                    original_count = len(synthetic_df)
+                    original_count = len(audit_df)
                     new_count = len(modified_df)
                     delta = new_count - original_count
                     total_values_changed = sum(col_info.get('values_filled', 0) + col_info.get('outliers_clipped', 0) 
@@ -2038,10 +1937,10 @@ with tab5:
                                 col_before, col_after = st.columns(2)
                                 with col_before:
                                     st.caption("**Before:**")
-                                    missing_before = synthetic_df[col_name].isna().sum()
+                                    missing_before = audit_df[col_name].isna().sum()
                                     st.write(f"  • Missing: {missing_before}")
-                                    if not synthetic_df[col_name].isna().all():
-                                        st.write(f"  • Mean: {synthetic_df[col_name].mean():.2f}")
+                                    if not audit_df[col_name].isna().all():
+                                        st.write(f"  • Mean: {audit_df[col_name].mean():.2f}")
                                 with col_after:
                                     st.caption("**After:**")
                                     missing_after = modified_df[col_name].isna().sum()
