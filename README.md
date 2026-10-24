@@ -37,10 +37,18 @@ python3.11 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 
-streamlit run src/ui/audit_workspace.py
+bash scripts/run_explorer.sh
 ```
 
-Open `http://localhost:8501`. The guided demo is selected by default and does not require Ollama, an API key, or an internet connection.
+Open `http://127.0.0.1:8600` for **MedGuard Explorer**, the main interface: start from a research question, confirm the suggested plan, then explore a zoomable canvas of linked widgets. The first run builds the front end, which needs Node 18 or later. Turn off "Local AI" in the header to plan with rules only; no Ollama, API key, or internet connection is needed. See [`src/explorer/README.md`](src/explorer/README.md).
+
+The earlier Streamlit workspace remains available as a fallback:
+
+```bash
+bash scripts/run_local.sh
+```
+
+It opens at `http://localhost:8501` with the guided demo selected.
 
 Run the deterministic test suite:
 

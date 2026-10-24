@@ -14,6 +14,7 @@ from services.audit_runner import run_audit
 from services.input_validation import validate_input
 from ui.visuals import (
     allocate_squares,
+    build_readiness_funnel,
     build_change_payload,
     build_cohort_payload,
     build_coverage_payload,
@@ -57,7 +58,8 @@ def test_mosaic_payload_contains_only_aggregate_row_flags():
     text = json.dumps(payload)
 
     assert payload["labels"] == ["sex = 0", "sex = 1"]
-    assert set(payload["rows"][0]) == {"row", "group", "missing", "duplicate", "focus"}
+    assert set(payload["rows"][0]) == {"id", "row", "group", "missing", "duplicate", "focus", "drop"}
+    assert [row["drop"] for row in payload["rows"]] == [0, 2, 0, 1, 2, 1]
     assert "alpha" not in text and "omega" not in text
     assert "secret_value" not in text and "visit" not in text
     assert [row["focus"] for row in payload["rows"]] == [False, True, False, False, True, False]
@@ -209,3 +211,30 @@ def test_guided_demo_visual_payloads_match_the_audit():
     assert mosaic["rowCount"] == 1_031 and mosaic["sampled"] is False
     assert sum(row["duplicate"] for row in mosaic["rows"]) == 62
     assert sum(row["missing"] for row in mosaic["rows"]) == 340
+
+
+def test_readiness_funnel_counts_rows_through_each_check():
+    frame = coded_frame()
+    funnel = build_readiness_funnel(frame, "sex")
+
+    assert [stage["key"] for stage in funnel] == ["all", "unique", "complete", "labelled"]
+    assert [stage["rows"] for stage in funnel] == [6, 4, 2, 2]
+    assert [stage["dropped"] for stage in funnel] == [0, 2, 2, 0]
+    assert build_readiness_funnel(frame, None)[-1]["key"] == "complete"
+
+
+def test_mosaic_row_ids_follow_the_filtered_frame_index():
+    frame = coded_frame().iloc[[1, 3, 5]]
+    payload = build_mosaic_payload(frame, audit(frame, ["sex"]), demographic_column="sex")
+
+    assert [row["id"] for row in payload["rows"]] == [1, 3, 5]
+    assert [row["row"] for row in payload["rows"]] == [2, 4, 6]
+
+
+def test_payloads_module_has_no_streamlit_dependency():
+    import importlib, sys as _sys
+    _sys.modules.pop("ui.visuals.payloads", None)
+    source = (ROOT / "src/ui/visuals/payloads.py").read_text()
+    assert "streamlit" not in source.split('"""', 2)[2]
+    assert "plotly" not in source.split('"""', 2)[2]
+    importlib.import_module("ui.visuals.payloads")

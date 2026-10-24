@@ -16,6 +16,11 @@ seaborn==0.13.0
 # UI Framework
 streamlit==1.29.0
 
+# Explorer API (src/explorer/server.py); httpx powers FastAPI's TestClient
+fastapi==0.115.9
+uvicorn==0.54.0
+httpx==0.27.2
+
 # AI/LLM Stack
 ollama==0.2.1
 pydantic==2.5.3

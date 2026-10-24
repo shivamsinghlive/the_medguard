@@ -1,0 +1,59 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Daylight-lab tokens as RGB channels. Tangerine (review) is reserved for review
+   evidence: review_needed, missing values, duplicates, rows left out of a copy. */
+:root {
+  color-scheme: light;
+  --paper: 244 246 251; --card: 255 255 255; --shadow: 26 35 64;
+  --ink-900: 26 35 64; --ink-700: 78 88 116; --ink-500: 93 103 132; --ink-300: 135 144 168; --ink-100: 231 234 243;
+  --slate-50: 247 248 252; --slate-100: 238 241 247; --slate-200: 221 226 238; --slate-300: 201 208 224;
+  --slate-400: 163 171 194; --slate-500: 122 131 156; --slate-600: 93 103 132; --slate-700: 62 71 99; --slate-800: 38 48 80;
+  --brand-50: 238 242 255; --brand-100: 230 236 255; --brand-200: 201 212 255; --brand-300: 157 176 255;
+  --brand-500: 47 91 255; --brand-600: 42 80 230; --brand-700: 30 58 184;
+  --teal-50: 221 246 243; --teal-500: 19 181 166; --teal-700: 11 111 102;
+  --review-50: 255 244 236; --review-100: 255 235 221; --review-200: 255 201 163; --review-400: 255 167 102;
+  --review-500: 255 138 61; --review-700: 138 58 5;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --paper: 15 20 36; --card: 23 30 51; --shadow: 0 0 0;
+    --ink-900: 238 241 250; --ink-700: 174 182 204; --ink-500: 143 152 178; --ink-300: 94 104 132; --ink-100: 39 48 74;
+    --slate-50: 28 36 64; --slate-100: 34 43 72; --slate-200: 41 50 75; --slate-300: 54 64 94;
+    --slate-400: 74 85 118; --slate-500: 107 117 148; --slate-600: 143 152 178; --slate-700: 174 182 204; --slate-800: 212 218 232;
+    --brand-50: 29 38 80; --brand-100: 36 49 90; --brand-200: 51 68 122; --brand-300: 77 99 168;
+    --brand-500: 111 141 255; --brand-600: 63 94 240; --brand-700: 201 212 255;
+    --teal-50: 23 59 61; --teal-500: 47 209 193; --teal-700: 155 237 228;
+    --review-50: 58 36 24; --review-100: 74 44 32; --review-200: 122 74 48; --review-400: 224 138 80;
+    --review-500: 255 157 92; --review-700: 255 201 163;
+  }
+}
+
+html, body { background: rgb(var(--paper)); color: rgb(var(--ink-900)); }
+body { font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased; }
+
+@layer components {
+  .card { @apply bg-card rounded-2xl border border-line shadow-card; }
+  .btn { @apply inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:cursor-not-allowed disabled:opacity-40; }
+  .btn-primary { @apply btn bg-brand-600 text-white shadow-sm hover:bg-brand-700; }
+  .btn-ghost { @apply btn text-ink-700 hover:bg-slate-100; }
+  .btn-outline { @apply btn border border-slate-300 bg-card text-ink-700 hover:border-brand-500 hover:text-brand-700; }
+  .field { @apply w-full rounded-xl border border-slate-300 bg-card px-3 py-2 text-sm text-ink-900 placeholder:text-ink-300 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100; }
+  .label { @apply mb-1 block text-xs font-semibold uppercase tracking-wide text-ink-500; }
+  .chip { @apply inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium; }
+  .eyebrow { @apply text-[11px] font-bold uppercase tracking-[0.1em] text-ink-500; }
+  .display { @apply font-display font-bold tracking-tight text-ink-900; }
+}
+:focus-visible { outline-color: rgb(var(--brand-500)); }
+.react-flow__attribution { display: none; }
+.react-flow__controls { box-shadow: none; border: 1px solid rgb(var(--slate-200)); border-radius: 12px; overflow: hidden; }
+.react-flow__controls-button { background: rgb(var(--card)); border-bottom-color: rgb(var(--slate-200)); fill: rgb(var(--ink-700)); }
+.react-flow__controls-button:hover { background: rgb(var(--slate-100)); }
+.react-flow__minimap { background: rgb(var(--card)); border: 1px solid rgb(var(--slate-200)); border-radius: 12px; overflow: hidden; }
+.react-flow__edge-path { stroke: rgb(var(--slate-300)); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+}
