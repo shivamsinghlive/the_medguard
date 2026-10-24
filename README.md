@@ -111,6 +111,8 @@ Use the bundled diabetes cohort for the shortest offline walkthrough:
 
 The full presenter script and judge questions are in [`docs/demo/DEMO_SCRIPT.md`](docs/demo/DEMO_SCRIPT.md) and [`docs/demo/JUDGE_QA.md`](docs/demo/JUDGE_QA.md).
 
+Submission preparation is tracked in the [DS+X submission checklist](docs/demo/SUBMISSION_CHECKLIST.md). The [slide outline](docs/demo/SLIDES_OUTLINE.md) and [video runbook](docs/demo/VIDEO_RUNBOOK.md) use the same measured claims as the product.
+
 ![MedGuard guided demo](docs/demo/medguard-overview.png)
 
 ## Current boundaries
@@ -127,6 +129,12 @@ MedGuard currently does not:
 Supported change previews include exact-duplicate removal, missing-row rules on selected features, median or constant missing-value fills, whitespace trimming, and feature-column removal. Any blocked action blocks the complete change set, so the UI never presents a partial result as ready.
 
 The optional explainer receives only minimized aggregate evidence. It uses a controlled focus, an eight-second timeout, structured-output checks, unsupported-claim filters, and a deterministic fallback. Successful responses are cached by dataset fingerprint, evidence digest, focus, model, prompt version, and schema version. Source-grounded RAG remains disabled because the W04 source inventory is not present on `main`.
+
+## Project provenance and event eligibility
+
+This repository contains a pre-existing MedGuard prototype. The documented pre-event review baseline is commit [`d3a1072`](https://github.com/shivamsinghlive/the_medguard/commit/d3a1072e40a138eb210817f84c720319355e6c6d), dated March 9, 2026. The evidence-first audit workspace, deterministic contracts, input/privacy validation, source-preserving change previews, bounded optional explanations, tests, and current demo materials were developed on October 24, 2026. The Git history preserves that boundary for reviewers.
+
+The published DS+X pages do not currently state whether pre-existing projects are eligible. The team must obtain an organizer decision and disclose this baseline before submission. The event overview also lists teams of three to five members; a two-person team should not assume eligibility without an organizer-approved exception or an additional registered teammate. See the [official overview](https://ds-x-hackathon-2026.devpost.com/) and [published rules](https://ds-x-hackathon-2026.devpost.com/rules).
 
 ## Team workflow
 
