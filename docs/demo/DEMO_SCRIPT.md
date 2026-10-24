@@ -1,74 +1,68 @@
 # MedGuard DS+X 2026 Demo Script
 
-Target length: 3 minutes. Run the guided demo with networking and AI services turned off.
+Target length: 3 minutes, in **MedGuard Explorer** (`bash scripts/run_explorer.sh`, then http://127.0.0.1:8600).
+Turn "Local AI" off in the header and rehearse with networking off.
 
 ## 0:00-0:25 - The decision
 
-> Healthcare teams often start modeling before they can answer a simpler question: what evidence does this dataset actually contain? MedGuard creates a reviewable dataset-readiness record before training begins.
+> Healthcare teams often start modeling before they can answer a simpler question: what evidence does this dataset actually contain, for the question we care about? MedGuard builds a reviewable dataset-readiness record around that question, before training begins.
 
-Point to the four promises in the hero: deterministic checks, source preservation, offline operation, and explicit unknowns.
+Type the research question: *Can we predict diabetes reliably for women in primary care?* Outcome `diabetes`, groups `women`. Choose the bundled **Diabetes Combined** dataset and show the accepted row and column counts.
 
-## 0:25-0:55 - Trusted input
+> Uploaded files follow the same path. MedGuard validates raw CSV bytes once, and every check uses the exact table returned by validation. First-release limits: 25 MB, 200,000 rows, 500 columns.
 
-Keep **Guided demo** selected. Explain that it is a bundled synthetic cohort. Show the accepted row and column counts.
+## 0:25-0:45 - A plan you can see
 
-> Uploaded files follow the same path. MedGuard validates raw CSV bytes once and every downstream check uses the exact table returned by validation.
+Click **Plan my analysis**. Show the suggested outcome, groups, identifier, and the focus group taken from the question, each with its reason. Click **Run analysis**.
 
-Mention the bounded first-release limits: 25 MB, 200,000 rows, and 500 columns.
+> The plan comes from transparent rules here; the local model is optional, and any role it suggests must exist in the file.
 
-## 0:55-1:35 - Interactive evidence without a verdict
+## 0:45-1:25 - Evidence without a verdict
 
-Keep `sex` selected as the demographic column. Point to **Audit status**, then use the
-**Explore measured row flags** mosaic to switch between cohort, missing-values, duplicate,
-and identifier-screening lenses. Open **Cohort evidence** and show the observed shares,
-100-square view, and nonmissing denominator.
+Point to the four status tiles: one summary, measured once. Scroll the **workflow canvas**: zoom, pan, and use the minimap. Tangerine edges mark findings to review.
 
-> MedGuard preserves recorded labels. It never silently turns a code such as 1 into a demographic category. Without a supplied reference, this is descriptive evidence.
+Double-click **Row map**. Show the readiness funnel (all rows, unique, complete, labelled) and click **No missing cells** to light up the rows that leave there. Scroll to zoom into the grid.
 
-Enable **Compare `sex` with a reference** and leave the slider at 50%.
+> Nothing is removed. The funnel describes how many rows pass each measured check, in sequence.
 
-> The percentage-point difference is calculated, but MedGuard does not invent a universal threshold or call the dataset fair or biased.
+Use the arrow to **Representation**: observed shares, the 100-square view, and the non-missing denominator.
 
-## 1:35-2:10 - Privacy honesty
+> Labels stay exactly as recorded. Without a supplied reference this is descriptive; with one, the gap is shown in percentage points, with no universal threshold and no fair or biased label.
 
-Open **Identifier screening**. Show the animated coverage ring, scanned-column sequence,
-matched signals, and the always-visible limitations.
+## 1:25-2:00 - Linked filtering
 
-> This is deliberately called screening. It detects potential identifiers using documented heuristics, reports exactly how much it scanned, and always states that it does not certify de-identification.
+Open **Distributions**, pick `age`, and drag across 45 to 55. Click **Filter the workspace**. Close the panel: the chip reads `age 44.6–54.4`, the row count drops, and every widget, tile, and answer recomputes for that subset. Click **Undo**.
 
-## 2:10-2:35 - Reviewable evidence
+> Every filter is a view of the same locked file. Undo and redo make each step reversible.
 
-Open **Data quality** and show the measured count tiles and missingness view. Set
-**Missing-values focus** to `hba1c`: the mosaic opens on the missing-values lens for that column
-and the column is highlighted in the missingness view. Then download the JSON report.
+## 2:00-2:20 - Privacy honesty
 
-> The interface and export share the same deterministic result. A reviewer can inspect counts, findings, limitations, coverage, and the dataset fingerprint without relying on an AI-generated conclusion.
+Open **Identifier screen**. Show the coverage ring, the scanned columns, and the always-visible callout.
 
-## 2:35-3:00 - Close
+> This is deliberately called screening. It reports exactly how much it scanned and never certifies de-identification.
 
-Scroll to **Preview supported changes**.
+## 2:20-3:00 - Close
 
-Select **Remove exact duplicate rows** and generate the preview. Show the row map, source and
-copy fingerprint identicons, ledger counts, action evidence, and limitations, then accept it
-for export and point to the **ready to export** stamp.
+Scroll to **Prepare a reviewed copy**. Keep **Remove exact duplicate rows** and click **Generate preview**. Show the removed rows dropping out of the row map, the ledger (1,031 → 1,000), the before and after diff, and the two fingerprint identicons. Click **Accept for export** and point to the **ready to export** stamp. Download the JSON report.
 
-> MedGuard creates a separate reviewed copy and keeps the audited source unchanged. Demographics, outcomes, predictions, and identifiers are excluded from change targets. Automatic balancing and SMOTE remain unavailable because a cleaning action does not establish improved fairness or model performance.
+> The source stays locked; the reviewed copy has its own fingerprint and is recorded in the report. Demographics, outcomes, predictions, and identifiers are never change targets, and SMOTE or demographic balancing are not offered, because a cleaner copy does not establish fairness or accuracy.
 
-If time allows, choose **Audit overview** and click **Generate optional explanation**.
+If time allows, click **Explain this view** in any panel.
 
-> Explanations run only when requested. The prompt contains aggregate evidence rather than original records, and the interface shows a deterministic fallback if the local model is unavailable or fails output checks. W04 sources are visible as reviewed context cards; AI retrieval stays disabled until it is verified end to end.
+> Explanations run only on request, receive aggregate facts rather than records, and fall back to a rule-based summary when the local model is off or unavailable.
 
 ## Before presenting
 
-- Start from `streamlit run src/ui/audit_workspace.py`.
-- Confirm the guided demo reports 1,031 rows.
-- Confirm all tests pass.
+- Run `bash scripts/run_explorer.sh --build` once after pulling.
+- Confirm Diabetes Combined reports 1,031 rows and the tour is dismissed (or clear site data to show it).
+- Confirm all tests pass: `python -m pytest -q` and `cd frontend && npm run build`.
 - Keep one exported JSON report ready as a backup.
-- Rehearse with Wi-Fi disabled.
+- Rehearse with Wi-Fi disabled and "Local AI" off.
+- The Streamlit workspace (`bash scripts/run_local.sh`) remains a fallback.
 - Do not describe the screen as a fairness, privacy, HIPAA, FDA, or clinical-safety certification.
 
 ## Latest offline rehearsal
 
-October 24, 2026 on merged `main` after S04: the 1,200-row guided demo loaded without an AI call. With local Ollama unavailable, an explicit explanation request displayed its progress state, timed out after eight seconds, and returned the deterministic fallback. The audit tabs and JSON/CSV exports remained available.
+October 24, 2026 on `shivam/explorer-ui`: with "Local AI" off, Diabetes Combined loaded 1,031 rows, rule-based planning completed, and the canvas, row map zoom and funnel, histogram range filter, row-map selection filter, drill-down panels, tour, and reviewed-copy accept flow all worked. The earlier Streamlit rehearsal on merged `main` after S04 is unchanged.
 
 Before submission, resolve the team-size and pre-existing-work items in [`SUBMISSION_CHECKLIST.md`](SUBMISSION_CHECKLIST.md).
