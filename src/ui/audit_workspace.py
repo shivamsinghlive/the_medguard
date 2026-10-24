@@ -27,7 +27,7 @@ from services.contracts import ChangePreviewError, RepresentationInputError
 from services.input_validation import validate_input
 
 
-DEMO_PATH = PROJECT_DIR / "data/synthetic/dataset2_diabetes_gender_bias.csv"
+DEMO_PATH = PROJECT_DIR / "data/synthetic/dataset4_diabetes_combined.csv"
 PRIORITY_LABELS = {"high": "Review first", "medium": "Review next", "low": "Context"}
 STATUS_LABELS = {
     "review_needed": "Review needed",
@@ -109,7 +109,7 @@ st.markdown(
     p, li, label { color: var(--mg-muted); }
     #MainMenu, footer, [data-testid="stToolbar"] { visibility: hidden; }
     header[data-testid="stHeader"] { background: transparent; }
-    .mg-hero { position: relative; overflow: hidden; padding: 2.5rem 2.65rem;
+    .mg-hero { position: relative; overflow: hidden; padding: 2.5rem 2.65rem; container-type: inline-size;
       border-radius: 30px; color: white; margin-bottom: 1rem;
       background: radial-gradient(circle at 78% 18%, rgba(57,210,194,.24), transparent 25%),
         radial-gradient(circle at 96% 82%, rgba(125,102,255,.28), transparent 28%),
@@ -154,6 +154,10 @@ st.markdown(
     .mg-node.n1 { top: 5%; left: 12%; } .mg-node.n2 { right: 0; top: 44%; }
     .mg-node.n3 { bottom: 5%; left: 7%; }
     @keyframes mg-spin { to { transform: rotate(360deg); } }
+    @container (max-width: 760px) {
+      .mg-hero-grid { grid-template-columns: 1fr; }
+      .mg-orbit { display: none; }
+    }
     .mg-section { display: flex; align-items: end; justify-content: space-between; gap: 1rem;
       margin: 2.25rem 0 .75rem; }
     .mg-section-kicker { color: var(--mg-teal); font-size: .7rem; font-weight: 800;
@@ -185,6 +189,8 @@ st.markdown(
       font-size: 1.35rem; font-weight: 850; }
     .mg-review-copy strong { display: block; color: var(--mg-ink); font-size: 1rem; }
     .mg-review-copy span { color: var(--mg-muted); font-size: .82rem; line-height: 1.45; }
+    .mg-review-copy .mg-review-split { display: block; color: var(--mg-ink); font-weight: 700;
+      margin-top: .3rem; }
     .mg-review-link { display: inline-block; border-radius: 999px; background: #0b736c;
       color: white !important; text-decoration: none; padding: .55rem .85rem; font-size: .76rem;
       font-weight: 800; white-space: nowrap; }
@@ -242,6 +248,7 @@ st.markdown(
     [data-testid="stMetric"]::before { content: ""; position: absolute; left: 0; top: 0; right: 0;
       height: 3px; background: linear-gradient(90deg,#26c9b6,#6d63f2,#f17f65); }
     [data-testid="stMetricLabel"] { color: var(--mg-muted); }
+    [data-testid="stMetricLabel"] p { white-space: normal; overflow: visible; text-overflow: clip; }
     [data-testid="stMetricValue"] { color: var(--mg-ink); font-size: 1.5rem; font-weight: 760; }
     [data-testid="stSidebar"] { background:
       radial-gradient(circle at 10% 0%, rgba(73,214,197,.17), transparent 16rem),
@@ -261,8 +268,15 @@ st.markdown(
       min-height: 2.8rem; transition: transform .18s ease, box-shadow .18s ease; }
     .stButton > button[kind="primary"] { border: 0; color: white;
       background: linear-gradient(105deg,#087f78,#4b55c8); box-shadow: 0 9px 24px rgba(40,76,152,.20); }
+    .stButton > button p, .stDownloadButton > button p { color: inherit; }
+    .stButton > button[kind="secondary"] { border: 1px solid #c7d9d4; color: var(--mg-ink);
+      background: white; }
+    .stButton > button[kind="secondary"]:hover { border-color: var(--mg-teal); color: var(--mg-teal); }
     .stButton > button:hover, .stDownloadButton > button:hover { transform: translateY(-1px);
       box-shadow: 0 10px 24px rgba(36,57,100,.13); }
+    .stButton > button:disabled, .stButton > button:disabled:hover {
+      border: 1px dashed #c3ced8; color: #52616c; background: #e9eef3; box-shadow: none;
+      cursor: not-allowed; transform: none; }
     .mg-viz-head { display: flex; justify-content: space-between; align-items: center;
       margin: .25rem 0 .65rem; }
     .mg-viz-title { color: var(--mg-ink); font-size: .9rem; font-weight: 800; }
@@ -280,6 +294,18 @@ st.markdown(
     @media (prefers-reduced-motion: reduce) {
       html { scroll-behavior: auto; } .mg-orbit-ring.r2 { animation: none; }
       .mg-source-card, .stButton > button, .stDownloadButton > button { transition: none; }
+    }
+    @media (max-width: 1180px) {
+      .mg-section { display: block; }
+      .mg-section-copy { text-align: left; margin-top: .35rem; max-width: none; }
+    }
+    @media (min-width: 641px) and (max-width: 1180px) {
+      [data-testid="stHorizontalBlock"]:has(> [data-testid="column"]:nth-child(4)) {
+        flex-wrap: wrap; row-gap: 1rem; }
+      [data-testid="stHorizontalBlock"]:has(> [data-testid="column"]:nth-child(4))
+        > [data-testid="column"] {
+        flex: 1 1 calc(50% - 1rem) !important; width: calc(50% - 1rem) !important;
+        min-width: calc(50% - 1rem) !important; }
     }
     @media (max-width: 700px) {
       .block-container { padding: .8rem .8rem 3rem; }
@@ -334,6 +360,16 @@ def clear_change_state() -> None:
     ):
         st.session_state.pop(key, None)
     st.session_state["selected_change_actions"] = []
+
+
+def observed_split_summary(attribute: dict, limit: int = 3) -> str:
+    """Describe the largest observed groups for one attribute without judging them."""
+
+    groups = [group for group in attribute["groups"] if group["count"]]
+    shares = " · ".join(f"{group['label']} {group['proportion']:.1%}" for group in groups[:limit])
+    if len(groups) > limit:
+        shares += f" · +{len(groups) - limit} more"
+    return f"Observed {attribute['column']}: {shares}"
 
 
 def style_chart(chart):
@@ -601,11 +637,21 @@ else:
         "The measurements are still descriptive. Inspect the evidence and limitations before "
         "deciding whether this dataset fits the intended use."
     )
+split_lines = "".join(
+    f'<span class="mg-review-split">{escape(observed_split_summary(attribute))}</span>'
+    for attribute in representation["attributes"][:2]
+    if attribute["groups"] and attribute["observed_count"]
+)
+if split_lines:
+    split_lines += (
+        "<span>Observed shares are descriptive; no threshold is applied. Compare them with "
+        "the intended population in Cohort evidence.</span>"
+    )
 st.markdown(
     f'<div class="mg-review-queue" role="status">'
     f'<div class="mg-review-count" aria-label="{review_count} review signals">{review_count}</div>'
     f'<div class="mg-review-copy"><strong>{escape(review_title)}</strong>'
-    f'<span>{escape(review_copy)}</span></div>'
+    f'<span>{escape(review_copy)}</span>{split_lines}</div>'
     '<a class="mg-review-link" href="#evidence-tabs">Review evidence ↓</a></div>',
     unsafe_allow_html=True,
 )

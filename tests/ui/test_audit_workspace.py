@@ -24,7 +24,7 @@ def test_guided_demo_uses_live_descriptive_service(monkeypatch):
     assert not app.exception
     assert app.radio[0].value == "Guided demo"
     assert not app.text_area
-    assert [m.value for m in app.metric if m.label == "Records"] == ["1,200"]
+    assert [m.value for m in app.metric if m.label == "Records"] == ["1,031"]
     assert [m.value for m in app.metric if m.label == "Attributes assessed"] == ["1"]
     assert [m.value for m in app.metric if m.label == "Representation flags"] == ["0"]
     assert [m.value for m in app.metric if m.label == "Identifier signals"]
@@ -43,7 +43,9 @@ def test_guided_demo_uses_live_descriptive_service(monkeypatch):
     assert "See the evidence before you train" in page_text
     assert "Automatic mitigation remains disabled" in page_text
     assert "screening result, not privacy clearance" in page_text
-    assert "2 signals ready for review" in page_text
+    assert "1 signal ready for review" in page_text
+    assert "Observed sex: Male 68.2% · Female 31.8%" in page_text
+    assert "no threshold is applied" in page_text
     assert "Evidence behind the boundaries" in page_text
     assert "Good Machine Learning Practice" in page_text
     assert "45 CFR 164.514(b)" in page_text
@@ -52,6 +54,15 @@ def test_guided_demo_uses_live_descriptive_service(monkeypatch):
     assert "Reviewed sources are available; retrieval is not" in page_text
     assert "fixed v1 contract fixture" not in page_text
     assert "FAIR" not in page_text
+
+
+def test_guided_demo_exercises_quality_evidence(monkeypatch):
+    app = run_app(monkeypatch)
+
+    assert not app.exception
+    assert [m.value for m in app.metric if m.label == "Missing cells"] == ["340"]
+    assert [m.value for m in app.metric if m.label == "Columns with missing data"] == ["2"]
+    assert [m.value for m in app.metric if m.label == "Rows in duplicate sets"] == ["62"]
 
 
 def test_reviewed_context_links_match_w04_inventory(monkeypatch):
@@ -113,9 +124,9 @@ def test_allowlisted_preview_can_be_accepted_without_replacing_source(monkeypatc
     assert not app.exception
     page_text = " ".join(item.value for item in app.markdown)
     assert "Preview ready" in page_text
-    assert [m.value for m in app.metric if m.label == "Rows before"] == ["1,200"]
+    assert [m.value for m in app.metric if m.label == "Rows before"] == ["1,031"]
     assert [m.value for m in app.metric if m.label == "Rows after"]
-    assert [m.value for m in app.metric if m.label == "Records"] == ["1,200"]
+    assert [m.value for m in app.metric if m.label == "Records"] == ["1,031"]
 
     accept = next(button for button in app.button if button.label == "Accept preview for export")
     accept.click().run(timeout=30)
