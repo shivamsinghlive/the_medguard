@@ -35,8 +35,9 @@ def test_guided_demo_uses_live_descriptive_service(monkeypatch):
     assert preview.disabled
 
     page_text = " ".join(item.value for item in app.markdown)
-    assert "Live guided demo" in page_text
-    assert "No rule-based review flags" in page_text
+    assert "Guided demo is ready" in page_text
+    assert "No representation rules triggered" in page_text
+    assert "See the evidence before you train" in page_text
     assert "Automatic mitigation is disabled" in page_text
     assert "screening result, not privacy clearance" in page_text
     assert "fixed v1 contract fixture" not in page_text
@@ -70,5 +71,6 @@ def test_upload_mode_waits_for_a_file(monkeypatch):
     app.radio[0].set_value("Upload CSV").run(timeout=30)
 
     assert not app.exception
-    assert not [m for m in app.metric if m.label == "Review flags"]
-    assert any("assign column roles" in info.value for info in app.info)
+    assert not [m for m in app.metric if m.label == "Representation flags"]
+    page_text = " ".join(item.value for item in app.markdown)
+    assert "Drop in a healthcare dataset to begin" in page_text

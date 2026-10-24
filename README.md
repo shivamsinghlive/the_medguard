@@ -1,269 +1,123 @@
-# 🏥 MedGuard AI
+# MedGuard
 
-**Multi-Agent Healthcare Data Validator with Privacy-Preserving Intelligence**
+**Evidence-first dataset readiness for healthcare machine learning.**
 
-[![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Hackathon: Convergence 2026](https://img.shields.io/badge/Hackathon-Convergence%202026-green.svg)](https://github.com/Varsh1009/meddata-guardian)
+MedGuard reviews a healthcare CSV before model training. It validates file structure, screens for potential identifiers, measures missingness and duplicate rows, summarizes explicitly selected demographic columns, and exports the evidence as JSON or CSV.
 
----
+The application reports what it measured and where evidence is missing. It does not label a dataset fair, certify de-identification, infer patient harm, or claim that a transformation improves model accuracy.
 
-> **Implementation status:** The active dashboard audits original records. Performance gaps,
-> patient harm, and accuracy improvements are not measured. Other legacy privacy and fairness
-> claims below are under review; see [the implementation backlog](docs/IMPLEMENTATION_PLAN.md).
+## Working release
 
-## 📋 Overview
+The current Streamlit workspace provides:
 
-MedGuard AI is an intelligent healthcare data quality and fairness auditor that detects data quality issues and demographic bias **before** AI models are trained, preventing biased algorithms from harming patients.
+- A one-click synthetic demonstration with no network or model dependency.
+- UTF-8 CSV validation bounded to 25 MB, 200,000 rows, and 500 columns.
+- Heuristic screening for potential identifiers with explicit scan coverage.
+- User-selected representation summaries with counts, missingness, proportions, and optional reference comparisons.
+- Descriptive data-quality counts for missing cells and duplicated rows.
+- Strict JSON and reviewable CSV exports.
+- Source-preserving analysis. Audit services verify that the input table was not changed.
 
-**The Problem:** Medical AI systems often exhibit significant performance disparities across demographic groups, discovered only after deployment when patients are already harmed. Example: Apple Watch ECG algorithm was 34% less accurate for Black patients after 2 years of deployment.
+Potential identifier screening is a review aid. A result with no matched patterns does not establish HIPAA de-identification.
 
-**Our Solution:** Multi-agent AI system that analyzes datasets in 30 seconds, providing exact, actionable recommendations with HIPAA-compliant privacy-preserving architecture.
+## Run locally
 
----
+MedGuard is tested with Python 3.11.
 
-## 🎯 Key Features
-
-### **1. Privacy-Preserving Synthetic Data Layer**
-- Generates statistical twins of real datasets
-- AI agents analyze synthetic data only (HIPAA-safe)
-- Zero exposure of Protected Health Information
-- Industry-standard synthetic data generation
-
-### **2. Multi-Agent AI System**
-- **Medical Advisor Agent:** Clinical context from medical literature (RAG)
-- **Fairness Specialist Agent:** Exact bias quantification and mitigation strategies
-- **Deployment Strategist Agent:** Week-by-week implementation roadmaps
-
-### **3. Exact Quantification (Not Vague Advice)**
-- "Recruit 552 female patients" (not "get more data")
-- Model performance and patient harm are **not measured** from dataset representation.
-- "$60,000 recruitment cost, 6-month timeline" (not "expensive, takes time")
-
-### **4. Three-Layer HIPAA Compliance**
-- **Layer 1:** Pre-flight PHI scanner (rejects before loading)
-- **Layer 2:** Synthetic data firewall (AI never sees real patients)
-- **Layer 3:** Local processing (no data transmission)
-
-### **5. Context-Aware Recommendations**
-- Adapts to user's timeline, budget, model type, use case
-- Multiple valid paths with trade-off analysis
-- Immediate fixes + long-term strategies
-
----
-
-## 🚀 Quick Start
-
-### **Installation**
 ```bash
-# Clone repository
-git clone https://github.com/Varsh1009/meddata-guardian.git
-cd meddata-guardian
+git clone https://github.com/shivamsinghlive/the_medguard.git
+cd the_medguard
 
-# Create virtual environment
-python3 -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install dependencies
+python3.11 -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
 
-# Install Ollama (for AI agents)
-curl -fsSL https://ollama.com/install.sh | sh
-ollama pull llama3.2:3b
+streamlit run src/ui/audit_workspace.py
 ```
 
-### **Run the Application**
+Open `http://localhost:8501`. The guided demo is selected by default and does not require Ollama, an API key, or an internet connection.
+
+Run the deterministic test suite:
+
 ```bash
-# Activate virtual environment
-source venv/bin/activate
-
-# Run Streamlit dashboard
-streamlit run src/ui/app_complete.py
+python -m pytest -q
 ```
 
-Open browser at `http://localhost:8501`
+## Review flow
 
----
-
-## 📊 Demo Datasets
-
-Four synthetic datasets are included for demonstration:
-
-1. **dataset1_heart_disease_quality.csv** - Data quality issues (missing values, duplicates, outliers)
-2. **dataset2_diabetes_gender_bias.csv** - Gender bias (73% male, 27% female)
-3. **dataset3_heart_disease_indigenous.csv** - Race bias (0% Indigenous representation)
-4. **dataset4_diabetes_combined.csv** - Combined quality + bias issues
-
----
-
-## 🏗️ Architecture
-```
-┌─────────────────────────────────────────────┐
-│  User Upload → PHI Scan → Synthetic Twin   │
-│                    ↓                        │
-│         Multi-Agent AI Analysis             │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐ │
-│  │ Medical  │  │ Fairness │  │Deployment│ │
-│  │ Advisor  │  │Specialist│  │Strategist│ │
-│  └──────────┘  └──────────┘  └──────────┘ │
-│                    ↓                        │
-│   Exact Recommendations + Working Code     │
-└─────────────────────────────────────────────┘
+```mermaid
+flowchart LR
+    A[CSV bytes] --> B{Structural validation}
+    B -->|Rejected| C[Actionable input errors]
+    B -->|Accepted| D[Validated DataFrame]
+    D --> E[Potential identifier screening]
+    D --> F[Quality evidence]
+    D --> G[Representation evidence]
+    E --> H[Audit report]
+    F --> H
+    G --> H
+    H --> I[JSON and CSV exports]
 ```
 
----
+The same DataFrame returned by validation feeds every downstream check. Uploaded files are not independently re-parsed after validation.
 
-## 🛠️ Technology Stack
+## What the statuses mean
 
-**Core:**
-- Python 3.11
-- Pandas, NumPy, SciPy
-- Scikit-learn, Fairlearn, imbalanced-learn
+| Status | Meaning |
+|---|---|
+| `review_needed` | A documented rule identified evidence that needs human review. |
+| `descriptive_only` | Measurements are available, but no review rule was triggered. |
+| `insufficient_evidence` | The selected data cannot support the requested measurement. |
+| `no_patterns_found` | Identifier screening found none of its listed patterns in the reported coverage. This is not privacy clearance. |
 
-**AI/ML:**
-- Ollama (local LLM runtime)
-- Llama 3.2 (3B parameters)
-- Instructor (schema enforcement, anti-hallucination)
-- Pydantic (data validation)
+Priority labels organize review order. They are not estimates of clinical risk.
 
-**Synthetic Data:**
-- Custom generator (statistical twin creation)
-- Privacy validation metrics
+## Repository map
 
-**RAG (Retrieval-Augmented Generation):**
-- ChromaDB (local vector database)
-- Medical knowledge base (clinical guidelines, FDA requirements)
-
-**UI:**
-- Streamlit (web dashboard)
-- Plotly (interactive visualizations)
-
----
-
-## 📂 Project Structure
-```
-meddata-guardian/
-├── data/
-│   └── synthetic/              # Demo datasets
-├── knowledge_base/
-│   ├── medical/                # Clinical guidelines for RAG
-│   ├── regulatory/             # FDA requirements
-│   └── statistical/            # Statistical best practices
-├── src/
-│   ├── agents/                 # AI agents
-│   │   ├── medical_advisor_v2.py
-│   │   ├── fairness_specialist.py
-│   │   └── deployment_strategist.py
-│   ├── utils/                  # Core utilities
-│   │   ├── phi_scanner.py
-│   │   ├── data_quality.py
-│   │   ├── bias_detection.py
-│   │   ├── synthetic_generator.py
-│   │   └── medical_rag.py
-│   └── ui/
-│       └── app_complete.py     # Main Streamlit app
-├── scripts/
-│   └── generate_datasets.py   # Synthetic data creation
-└── requirements.txt
+```text
+data/synthetic/                 Bundled demonstration datasets
+src/services/contracts.py       Shared JSON-safe result contract
+src/services/input_validation.py
+src/services/privacy_screening.py
+src/services/representation.py  Deterministic analysis services
+src/services/audit_runner.py    Report orchestration and exports
+src/ui/audit_workspace.py       Active Streamlit experience
+tests/analysis/                 Service-level edge cases
+tests/integration/              End-to-end evidence packaging
+tests/ui/                       Streamlit behavior regressions
+docs/demo/                      Hackathon demo materials
 ```
 
----
+Legacy experimental agents and utilities remain in the repository for evaluation. They are not part of the active audit path.
 
-## 🔬 Problem Statements Addressed
+## Demonstration
 
-### **Problem 1: Data Quality Issues Discovered Too Late**
-Healthcare datasets contain missing values, duplicates, outliers that are often found after months of model development, wasting research time and resources.
+Use the bundled diabetes cohort for the shortest offline walkthrough:
 
-**Our Solution:** Instant detection with verified Python code to fix issues immediately.
+1. Keep **Guided demo** selected.
+2. Confirm `sex` is the demographic column.
+3. Inspect the observed 73/27 representation without enabling a reference.
+4. Enable the illustrative 50/50 reference and observe that the gap remains descriptive rather than becoming an automatic fairness verdict.
+5. Open **Identifier screening** to review coverage and limitations.
+6. Download the JSON audit record.
 
-### **Problem 2: Hidden Bias Leads to Unfair AI**
-Demographic bias (gender, race, age, socioeconomic) in training data causes AI models to perform poorly for underrepresented groups, perpetuating healthcare disparities.
+The full presenter script and judge questions are in [`docs/demo/DEMO_SCRIPT.md`](docs/demo/DEMO_SCRIPT.md) and [`docs/demo/JUDGE_QA.md`](docs/demo/JUDGE_QA.md).
 
-**Our Solution:** Detects ALL bias types (not just gender/race), reports representation gaps, provides specific recruitment strategies.
+![MedGuard guided demo](docs/demo/medguard-overview.png)
 
----
+## Current boundaries
 
-## 💡 Innovation Highlights
+MedGuard currently does not:
 
-### **1. Synthetic Data Privacy Firewall** (Unique Approach)
-- AI never sees real patient data
-- Statistical twins preserve properties without PHI exposure
-- Enables AI analysis with zero HIPAA risk
+- Measure model performance without labels, held-out predictions, and an evaluation protocol.
+- Determine clinical harm from demographic representation.
+- Certify fairness, safety, regulatory compliance, or de-identification.
+- Upload data to an AI provider in the active workflow.
+- Automatically balance cohorts or apply SMOTE.
+- Modify the source dataset.
 
-### **2. Anti-Hallucination Architecture**
-- Instructor schemas enforce strict output format
-- RAG grounds AI in real medical literature
-- Python calculates exact numbers (AI can't make up statistics)
-- Fallback to rule-based if AI fails
+Safe, explicit change previews are being developed separately and will require user review before export.
 
-### **3. Context-Aware Intelligence**
-- Asks about user's timeline, budget, model, use case
-- Recommendations adapt to constraints
-- "60-day timeline too short for recruitment → use SMOTE + plan 6-month retrain"
+## Team workflow
 
-### **4. Exact Quantification**
-- Report observed representation; do not infer misdiagnoses or patient harm.
-- Not "collect data" → "Recruit 552 female patients from Brigham Women's Hospital, $60K, 6 months"
-- Suggested transformations require held-out evaluation; accuracy improvements are not established.
-
----
-
-## 📊 Use Cases
-
-**Research:** Validate dataset before starting study, ensure representative enrollment  
-**Clinical Deployment:** Pre-deployment fairness audit, prevent biased algorithms  
-**FDA Submission:** Demographic subgroup analysis, compliance documentation  
-**Healthcare Equity:** Ensure Indigenous, minority populations represented  
-
----
-
-## 🔒 HIPAA Compliance
-
-MedGuard AI is designed with healthcare privacy as a core principle:
-
-1. **Pre-Processing PHI Scan:** Validates de-identification before any data loading
-2. **Synthetic Data Firewall:** AI analyzes statistical twins, not real patients
-3. **Local Processing:** All computation on user's machine, no external transmission
-4. **No Data Storage:** Data purged from memory when application closes
-5. **Audit Trail:** Compliance documentation for regulatory review
-
-**Deployment Model:** Desktop application, not cloud service. User maintains full data custody.
-
----
-
-## 🏆 Team: The Bias Busters
-
-
-**Convergence 2026 - GSG x GWiSE Interdisciplinary Graduate Hackathon**
-
-**Team Members:**
-- Computer Science: AI/ML implementation, synthetic data generation
-- Life Sciences: Clinical validation, medical knowledge curation
-- Regulatory Affairs: HIPAA compliance, FDA requirements
-- Business Strategy: Market analysis, deployment planning
-- Ethics: Health equity focus, vulnerable population protection
-
----
-
-## 📈 Impact
-
-**Time Saved:** 30-second analysis vs. 6 months of post-hoc bias discovery  
-**Patient Safety:** Prevents deployment of biased models that harm vulnerable populations  
-**Regulatory:** Supports FDA algorithmic fairness requirements (2021 guidance)  
-**Equity:** Centers Indigenous health, addresses systematic healthcare disparities  
-
-**Market Opportunity:**
-- 6,000 US hospitals × $50K/year = $300M TAM
-- 2,000 clinical trials/year × $200K = $400M
-- Total addressable market: $700M annually
-
----
-
-## 📄 License
-
-MIT License - See LICENSE file for details
-
-
----
-
-**Built with ❤️ for healthcare equity and responsible AI**
+Shivam owns product UI, integration, and demonstration materials. Swathi owns deterministic analysis, validation, safe-change previews, and release validation. Each task is developed on an isolated branch and merged through a pull request.
