@@ -1,9 +1,4 @@
-"""MedGuard's evidence-first audit workspace.
-
-The guided demo uses a clearly labeled contract fixture until the W01
-representation service is integrated. Uploaded datasets are previewed but are
-not assigned representation findings by this UI layer.
-"""
+"""MedGuard's evidence-first dataset audit workspace."""
 
 from __future__ import annotations
 
@@ -18,11 +13,17 @@ SRC_DIR = Path(__file__).resolve().parents[1]
 PROJECT_DIR = SRC_DIR.parent
 sys.path.insert(0, str(SRC_DIR))
 
-from ui.demo_fixtures import diabetes_gender_demo
+from services.audit_runner import finding_summary, report_csv, report_json, run_audit
+from services.contracts import RepresentationInputError
 
 
 DEMO_PATH = PROJECT_DIR / "data/synthetic/dataset2_diabetes_gender_bias.csv"
 PRIORITY_LABELS = {"high": "Review first", "medium": "Review next", "low": "Context"}
+STATUS_LABELS = {
+    "review_needed": "Review needed",
+    "descriptive_only": "Descriptive only",
+    "insufficient_evidence": "Insufficient evidence",
+}
 
 
 st.set_page_config(
@@ -36,13 +37,9 @@ st.markdown(
     """
     <style>
     :root {
-      --mg-ink: #102a43;
-      --mg-muted: #52667a;
-      --mg-teal: #087f8c;
-      --mg-teal-soft: #e6f6f7;
-      --mg-amber: #a15c00;
-      --mg-amber-soft: #fff4df;
-      --mg-border: #d9e2ec;
+      --mg-ink: #102a43; --mg-muted: #52667a; --mg-teal: #087f8c;
+      --mg-teal-soft: #e6f6f7; --mg-amber: #a15c00;
+      --mg-amber-soft: #fff4df; --mg-border: #d9e2ec;
     }
     .block-container { max-width: 1180px; padding-top: 2rem; padding-bottom: 4rem; }
     h1, h2, h3 { color: var(--mg-ink); letter-spacing: -0.02em; }
@@ -77,10 +74,6 @@ st.markdown(
 )
 
 
-def read_demo() -> pd.DataFrame:
-    return pd.read_csv(DEMO_PATH)
-
-
 def priority_card(finding: dict) -> None:
     label = PRIORITY_LABELS.get(finding["priority"], "Review")
     st.markdown(
@@ -88,12 +81,18 @@ def priority_card(finding: dict) -> None:
         <div class="mg-card">
           <div class="mg-priority">{label}</div>
           <div class="mg-title">{finding['title']}</div>
-          <div class="mg-copy">{finding['summary']}</div>
+          <div class="mg-copy">{finding_summary(finding)}</div>
           <div class="mg-copy"><strong>Next:</strong> {finding['suggested_action']}</div>
         </div>
         """,
         unsafe_allow_html=True,
     )
+
+
+def reference_for_demo(enabled: bool, columns: list[str]) -> dict | None:
+    if enabled and "sex" in columns:
+        return {"sex": {"Male": 0.5, "Female": 0.5}}
+    return None
 
 
 with st.sidebar:
@@ -126,47 +125,46 @@ st.markdown(
 
 
 if source == "Guided demo":
-    data = read_demo()
-    result = diabetes_gender_demo()
+    data = pd.read_csv(DEMO_PATH)
     source_label = "Synthetic diabetes cohort"
+    source_type = "bundled_synthetic_demo"
     st.markdown(
-        '<div class="mg-note"><strong>Guided interface demo.</strong> The records are bundled '
-        'synthetic data. Representation results below are a fixed v1 contract fixture while '
-        'Swathi\'s analysis service is developed; they are not recalculated by this UI.</div>',
+        '<div class="mg-note"><strong>Live guided demo.</strong> The records are bundled '
+        'synthetic data. Counts, proportions, missingness, and findings below are calculated '
+        'by the merged deterministic representation service.</div>',
         unsafe_allow_html=True,
     )
 else:
     uploaded = st.file_uploader("Choose a CSV file", type=["csv"])
     if uploaded is None:
-        st.info("Choose a CSV to preview its columns and assign roles. No analysis runs before upload.")
+        st.info("Choose a CSV to assign column roles and run deterministic representation analysis.")
         st.stop()
     try:
         data = pd.read_csv(uploaded)
     except Exception:
         st.error("This file could not be read as CSV. Check its format and encoding.")
         st.stop()
-    result = None
     source_label = uploaded.name
+    source_type = "uploaded_csv"
     st.markdown(
-        '<div class="mg-warning"><strong>Preview only.</strong> The file is loaded locally for '
-        'role selection. Representation findings will remain unavailable until the tested W01 '
-        'analysis service is integrated.</div>',
+        '<div class="mg-warning"><strong>Identifier screening has not run.</strong> W02 is '
+        'not integrated yet. Use de-identified test data; this release does not certify privacy.</div>',
         unsafe_allow_html=True,
     )
 
 
 st.markdown("## Review scope")
-role_col1, role_col2, role_col3 = st.columns(3)
 columns = list(data.columns)
 suggested_demographics = [c for c in columns if c.lower() in {"sex", "gender", "race_ethnicity"}]
 suggested_outcomes = [c for c in columns if c.lower() in {"outcome", "target", "diabetes", "heart_disease"}]
 suggested_ids = [c for c in columns if c.lower().endswith("_id")]
+role_col1, role_col2, role_col3 = st.columns(3)
 with role_col1:
     demographic_columns = st.multiselect(
         "Demographic columns",
         columns,
         default=suggested_demographics[:1],
-        help="Select explicitly. Numeric codes are not mapped automatically.",
+        help="Select explicitly. Numeric codes are retained and are never mapped automatically.",
     )
 with role_col2:
     st.selectbox(
@@ -179,76 +177,122 @@ with role_col3:
         "Identifier columns",
         columns,
         default=suggested_ids,
-        help="Identifiers are excluded from proposed transformations.",
+        help="Identifiers are excluded from future proposed transformations.",
     )
 
-if source == "Guided demo" and demographic_columns != ["sex"]:
-    st.warning(
-        "This fixture covers only the `sex` column. Your role selection is saved for the "
-        "future analysis-service integration, but the displayed fixture remains unchanged."
+use_demo_reference = False
+if source == "Guided demo" and "sex" in demographic_columns:
+    use_demo_reference = st.checkbox(
+        "Compare `sex` with an illustrative 50/50 reference",
+        value=False,
+        help=(
+            "This optional reference is supplied only for the guided demo. A percentage-point "
+            "difference is descriptive and does not trigger a universal cutoff."
+        ),
     )
 
+try:
+    report = run_audit(
+        data,
+        demographic_columns=demographic_columns,
+        reference_proportions=reference_for_demo(use_demo_reference, demographic_columns),
+        source_type=source_type,
+    )
+except RepresentationInputError as error:
+    st.error(f"Representation analysis could not run: {error}")
+    st.stop()
+
+representation = report["representation"]
+quality = report["quality"]
 
 st.divider()
 st.markdown(f"### {source_label}")
 metric_cols = st.columns(4)
-metric_cols[0].metric("Records", f"{len(data):,}")
-metric_cols[1].metric("Columns", f"{len(data.columns):,}")
-if result:
-    metric_cols[2].metric("Priority findings", len(result["findings"]))
-    metric_cols[3].metric("Performance", "Not measured")
-else:
-    metric_cols[2].metric("Findings", "Pending")
-    metric_cols[3].metric("Performance", "Not measured")
+metric_cols[0].metric("Records", f"{report['dataset']['row_count']:,}")
+metric_cols[1].metric("Attributes assessed", len(representation["attributes"]))
+metric_cols[2].metric("Review flags", len(representation["findings"]))
+metric_cols[3].metric("Performance", "Not measured")
+st.caption(
+    f"Representation status: {STATUS_LABELS[representation['status']]}. "
+    "This is an evidence state, not a fairness verdict."
+)
 
 
-overview_tab, cohorts_tab, data_tab = st.tabs(["Overview", "Cohort evidence", "Data preview"])
+overview_tab, cohorts_tab, quality_tab, data_tab = st.tabs(
+    ["Overview", "Cohort evidence", "Data quality", "Data preview"]
+)
 
 with overview_tab:
-    if result:
-        st.markdown("### What needs attention")
-        for finding in result["findings"]:
+    if representation["findings"]:
+        st.markdown("### What needs review")
+        for finding in representation["findings"]:
             priority_card(finding)
-        st.markdown("### What this review does not establish")
-        for limitation in result["limitations"]:
-            st.write(f"- {limitation}")
+    elif representation["status"] == "insufficient_evidence":
+        st.info("Representation evidence is insufficient. Select a populated demographic column.")
     else:
-        st.markdown("### Analysis pending")
+        st.markdown("### No rule-based review flags")
         st.write(
-            "The upload and role-selection experience is ready. This UI does not invent findings "
-            "while the deterministic representation and screening services are still pending."
+            "Observed proportions are descriptive. MedGuard v1 does not apply a universal "
+            "percentage-gap threshold or label the dataset fair."
         )
+    st.markdown("### What this review does not establish")
+    for limitation in representation["limitations"]:
+        st.write(f"- {limitation}")
+    st.write("- Potential identifier screening has not run; W02 integration is pending.")
 
 with cohorts_tab:
-    if result:
-        attribute = result["attributes"][0]
-        cohort_rows = []
+    if not representation["attributes"]:
+        st.info("Select at least one demographic column to view cohort evidence.")
+    for attribute in representation["attributes"]:
+        st.markdown(f"### {attribute['column']}")
+        rows = []
         for group in attribute["groups"]:
-            cohort_rows.append(
+            rows.append(
                 {
                     "Group": group["label"],
                     "Records": group["count"],
-                    "Observed share": f"{group['proportion']:.1%}",
-                    "Demo reference": f"{group['reference_proportion']:.1%}",
-                    "Difference": f"{group['difference_pp']:+.1f} pp",
+                    "Observed share": (
+                        f"{group['proportion']:.1%}" if group["proportion"] is not None else "Unavailable"
+                    ),
+                    "Reference": (
+                        f"{group['reference_proportion']:.1%}"
+                        if group["reference_proportion"] is not None
+                        else "Not supplied"
+                    ),
+                    "Difference": (
+                        f"{group['difference_pp']:+.1f} pp"
+                        if group["difference_pp"] is not None
+                        else "Not calculated"
+                    ),
                 }
             )
-        st.dataframe(pd.DataFrame(cohort_rows), use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
         st.caption(
-            "Denominator: 1,200 nonmissing values. The demo reference is an explicit interface "
-            "assumption and is not a universal fairness threshold."
+            f"Denominator: {attribute['observed_count']:,} nonmissing values. "
+            f"Missing values: {attribute['missing_count']:,}."
         )
-        with st.expander("Evidence details"):
-            st.json(
-                {
-                    "schema_version": result["schema_version"],
-                    "scope": result["scope"],
-                    "status": result["status"],
-                    "attribute": attribute,
-                }
-            )
+    with st.expander("Measured representation result"):
+        st.json(representation)
+
+with quality_tab:
+    quality_cols = st.columns(3)
+    quality_cols[0].metric("Missing cells", f"{quality['missing_cells']:,}")
+    quality_cols[1].metric("Columns with missing data", quality["columns_with_missing_values"])
+    quality_cols[2].metric("Rows in duplicate sets", quality["duplicate_rows"])
+    if quality["missing_by_column"]:
+        st.dataframe(
+            pd.DataFrame(
+                [
+                    {"Column": column, "Missing values": count}
+                    for column, count in quality["missing_by_column"].items()
+                ]
+            ),
+            use_container_width=True,
+            hide_index=True,
+        )
     else:
-        st.info("Cohort evidence will appear after the W01 service is integrated and tested.")
+        st.write("No missing cells were observed.")
+    st.caption("These are descriptive quality counts; no automatic cleaning has been applied.")
 
 with data_tab:
     st.dataframe(data.head(20), use_container_width=True, hide_index=True)
@@ -256,6 +300,23 @@ with data_tab:
 
 
 st.divider()
+st.markdown("## Export audit evidence")
+export_col1, export_col2 = st.columns(2)
+export_col1.download_button(
+    "Download JSON report",
+    data=report_json(report),
+    file_name="medguard-audit.json",
+    mime="application/json",
+    use_container_width=True,
+)
+export_col2.download_button(
+    "Download CSV evidence",
+    data=report_csv(report),
+    file_name="medguard-audit.csv",
+    mime="text/csv",
+    use_container_width=True,
+)
+
 st.markdown("## Changes to the dataset")
 st.markdown(
     '<div class="mg-warning"><strong>Automatic mitigation is disabled.</strong> The legacy '
