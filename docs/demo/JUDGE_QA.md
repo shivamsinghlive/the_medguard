@@ -18,7 +18,7 @@ No AI call exists in the deterministic audit path. The optional explanation runs
 
 ## Are the explanations grounded in medical sources?
 
-Not in the current branch. The W04 reviewed source inventory is not present on `main`, so source-grounded RAG is disabled. The explainer is limited to aggregate audit evidence and is visibly labeled unverified.
+The workspace shows deterministic context cards from W04's reviewed source inventory. The AI explanation itself is not source-grounded: embedding and retrieval are disabled until they pass an end-to-end test. The explainer is limited to aggregate audit evidence and is visibly labeled unverified.
 
 ## Why are automatic fixes disabled?
 

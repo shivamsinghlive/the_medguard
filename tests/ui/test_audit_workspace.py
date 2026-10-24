@@ -43,8 +43,29 @@ def test_guided_demo_uses_live_descriptive_service(monkeypatch):
     assert "See the evidence before you train" in page_text
     assert "Automatic mitigation remains disabled" in page_text
     assert "screening result, not privacy clearance" in page_text
+    assert "2 signals ready for review" in page_text
+    assert "Evidence behind the boundaries" in page_text
+    assert "Good Machine Learning Practice" in page_text
+    assert "45 CFR 164.514(b)" in page_text
+    assert "Multiple imputation: potential and pitfalls" in page_text
+    assert "knowledge-source inventory is not present" not in page_text
+    assert "Reviewed sources are available; retrieval is not" in page_text
     assert "fixed v1 contract fixture" not in page_text
     assert "FAIR" not in page_text
+
+
+def test_reviewed_context_links_match_w04_inventory(monkeypatch):
+    app = run_app(monkeypatch)
+    page_text = " ".join(item.value for item in app.markdown)
+    inventory = (ROOT / "knowledge_base/SOURCES.md").read_text()
+
+    for url in (
+        "https://www.fda.gov/media/153486/download",
+        "https://www.law.cornell.edu/cfr/text/45/164.514",
+        "https://doi.org/10.1136/bmj.b2393",
+    ):
+        assert url in page_text
+        assert url in inventory
 
 
 def test_large_reference_gap_remains_descriptive(monkeypatch):

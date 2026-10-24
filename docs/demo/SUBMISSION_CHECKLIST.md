@@ -9,7 +9,7 @@ Checked against the official DS+X pages on October 24, 2026. The submission dead
 | Team size | **Blocked** | The [event overview](https://ds-x-hackathon-2026.devpost.com/) lists teams of 3–5. The current plan names Shivam and Swathi. Add a registered teammate or obtain a written organizer exception. |
 | Pre-existing work | **Needs organizer answer** | The [published rules](https://ds-x-hackathon-2026.devpost.com/rules) do not state a reuse policy. Disclose baseline commit `d3a1072` and ask whether the October 24 work is eligible. Keep the written answer. |
 | Registration | **Verify manually** | The overview says Devpost registration alone is insufficient and links a separate registration form. Confirm every teammate completed it. |
-| Source-grounded RAG | **Out of scope** | W04 is absent from `main`. Keep RAG disabled and do not claim medical-source grounding. |
+| Source-grounded RAG | **Retrieval not verified** | W04 reviewed the source inventory. Keep AI retrieval disabled until embeddings and retrieval pass an end-to-end test. |
 
 Do not submit until the first three rows are resolved. They are event-administration questions, not code defects.
 
@@ -51,7 +51,7 @@ Avoid these claims:
 - fair, unbiased, safe, HIPAA compliant, de-identified, clinically validated
 - improved accuracy or reduced patient harm
 - automatic mitigation, demographic balancing, or recommended recruitment targets
-- medically grounded AI explanation while W04 is absent
+- medically grounded AI explanation while retrieval remains unverified
 
 ## Final five-minute check
 

@@ -48,7 +48,7 @@ Select **Remove exact duplicate rows** and generate the preview. Show the before
 
 If time allows, choose **Audit overview** and click **Generate optional explanation**.
 
-> Explanations run only when requested. The prompt contains aggregate evidence rather than original records, and the interface shows a deterministic fallback if the local model is unavailable or fails output checks. Source-grounded RAG stays disabled until its source inventory is reviewed.
+> Explanations run only when requested. The prompt contains aggregate evidence rather than original records, and the interface shows a deterministic fallback if the local model is unavailable or fails output checks. W04 sources are visible as reviewed context cards; AI retrieval stays disabled until it is verified end to end.
 
 ## Before presenting
 

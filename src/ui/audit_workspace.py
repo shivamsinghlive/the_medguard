@@ -45,6 +45,41 @@ CHANGE_ACTIONS = {
     "Trim leading and trailing whitespace": "strip_whitespace",
     "Remove a feature column": "drop_column",
 }
+REVIEWED_SOURCES = (
+    {
+        "id": "S4",
+        "label": "Cohort context",
+        "title": "Good Machine Learning Practice",
+        "publisher": "FDA, Health Canada and MHRA · 2021",
+        "summary": (
+            "Intended-population representation and subgroup testing matter; the principles "
+            "do not define a universal numeric disparity threshold."
+        ),
+        "url": "https://www.fda.gov/media/153486/download",
+    },
+    {
+        "id": "S6",
+        "label": "Privacy context",
+        "title": "45 CFR 164.514(b)",
+        "publisher": "HIPAA Privacy Rule · current text",
+        "summary": (
+            "The regulation describes Expert Determination and Safe Harbor. Pattern screening "
+            "alone establishes neither method."
+        ),
+        "url": "https://www.law.cornell.edu/cfr/text/45/164.514",
+    },
+    {
+        "id": "S8",
+        "label": "Missing-data context",
+        "title": "Multiple imputation: potential and pitfalls",
+        "publisher": "BMJ · 2009",
+        "summary": (
+            "Missing at random is an analytical assumption, not something this audit can prove "
+            "from the observed table."
+        ),
+        "url": "https://doi.org/10.1136/bmj.b2393",
+    },
+)
 
 
 st.set_page_config(
@@ -64,7 +99,8 @@ st.markdown(
       --mg-amber-soft: #fff7df; --mg-surface: #fbfdfc; --mg-border: #d9e6e2;
     }
     html { scroll-behavior: smooth; }
-    .stApp { background: #f4f8f6; }
+    .stApp { background:
+      radial-gradient(circle at 88% 5%, rgba(67,198,181,.08), transparent 23rem), #f4f8f6; }
     .block-container { max-width: 1240px; padding-top: 1.35rem; padding-bottom: 5rem; }
     h1, h2, h3 { color: var(--mg-ink); letter-spacing: -0.035em; }
     p, li, label { color: var(--mg-muted); }
@@ -89,6 +125,11 @@ st.markdown(
     .mg-chip { display: inline-block; border: 1px solid #abdadd; border-radius: 999px;
       background: rgba(255,255,255,.08); color: #e9fffb; padding: .36rem .72rem;
       font-size: .75rem; font-weight: 700; }
+    .mg-hero-flow { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: .55rem;
+      margin-top: 1.35rem; max-width: 880px; }
+    .mg-flow-step { border-top: 1px solid rgba(255,255,255,.32); padding-top: .65rem;
+      color: #dff4f1; font-size: .72rem; line-height: 1.35; }
+    .mg-flow-step strong { color: white; display: block; font-size: .78rem; margin-bottom: .1rem; }
     .mg-section { display: flex; align-items: end; justify-content: space-between; gap: 1rem;
       margin: 2.25rem 0 .75rem; }
     .mg-section-kicker { color: var(--mg-teal); font-size: .7rem; font-weight: 800;
@@ -110,6 +151,17 @@ st.markdown(
     .mg-warning { border: 1px solid #eed6a5; background: var(--mg-amber-soft); color: #704b08; }
     .mg-empty { border: 1px dashed #9ebdb6; background: rgba(255,255,255,.65);
       color: var(--mg-muted); text-align: center; padding: 2rem; }
+    .mg-review-queue { display: grid; grid-template-columns: auto 1fr auto; align-items: center;
+      gap: 1rem; border: 1px solid #b8d9d2; border-radius: 18px; background: white;
+      padding: 1.05rem 1.15rem; margin: 1rem 0 1.3rem; box-shadow: 0 10px 30px rgba(20,54,62,.06); }
+    .mg-review-count { display: grid; place-items: center; min-width: 3rem; height: 3rem;
+      border-radius: 14px; background: var(--mg-teal-soft); color: #075f59;
+      font-size: 1.35rem; font-weight: 850; }
+    .mg-review-copy strong { display: block; color: var(--mg-ink); font-size: 1rem; }
+    .mg-review-copy span { color: var(--mg-muted); font-size: .82rem; line-height: 1.45; }
+    .mg-review-link { display: inline-block; border-radius: 999px; background: #0b736c;
+      color: white !important; text-decoration: none; padding: .55rem .85rem; font-size: .76rem;
+      font-weight: 800; white-space: nowrap; }
     .mg-status-row { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: .75rem;
       margin: .75rem 0 1rem; }
     .mg-status { border: 1px solid var(--mg-border); background: white; border-radius: 14px;
@@ -127,6 +179,16 @@ st.markdown(
       letter-spacing: .1em; text-transform: uppercase; }
     .mg-explanation { border: 1px solid #c8d8e8; border-radius: 18px; background: #f6f9fd;
       padding: 1.05rem 1.15rem; margin: .75rem 0; }
+    .mg-source-card { height: 100%; border: 1px solid var(--mg-border); border-radius: 16px;
+      background: white; padding: 1rem 1.05rem; box-shadow: 0 8px 24px rgba(20,54,62,.045); }
+    .mg-source-label { color: var(--mg-teal); font-size: .66rem; font-weight: 850;
+      letter-spacing: .1em; text-transform: uppercase; }
+    .mg-source-title { color: var(--mg-ink); font-size: .96rem; font-weight: 780;
+      margin: .35rem 0 .12rem; }
+    .mg-source-publisher { color: var(--mg-muted); font-size: .72rem; margin-bottom: .65rem; }
+    .mg-source-summary { color: var(--mg-muted); font-size: .8rem; line-height: 1.5; min-height: 4.8rem; }
+    .mg-source-link { color: #086c64 !important; font-size: .76rem; font-weight: 800;
+      text-decoration-thickness: 1px; text-underline-offset: 3px; }
     .mg-brand { display: flex; align-items: center; gap: .65rem; margin: .3rem 0 1.5rem; }
     .mg-shield { display: grid; place-items: center; width: 2rem; height: 2rem;
       border-radius: 9px 9px 12px 12px; background: var(--mg-night); color: #76ddd0;
@@ -139,6 +201,10 @@ st.markdown(
       border-radius: 50%; background: #dceae6; color: #315e58; font-size: .68rem; font-weight: 800; }
     .mg-step strong { display: block; color: var(--mg-ink); font-size: .82rem; }
     .mg-step span { color: var(--mg-muted); font-size: .72rem; line-height: 1.35; }
+    .mg-nav { display: grid; gap: .28rem; margin: .35rem 0 1rem; }
+    .mg-nav a { color: #315e58 !important; text-decoration: none; border-radius: 8px;
+      padding: .42rem .55rem; font-size: .76rem; font-weight: 700; }
+    .mg-nav a:hover { background: #dceae6; }
     [data-testid="stMetric"] { border: 1px solid var(--mg-border); border-radius: 12px;
       background: white; padding: .9rem 1rem; box-shadow: 0 7px 22px rgba(20,54,62,.04); }
     [data-testid="stMetricLabel"] { color: var(--mg-muted); }
@@ -156,9 +222,12 @@ st.markdown(
     .stTabs [aria-selected="true"] { background: white; box-shadow: 0 2px 8px rgba(20,54,62,.08); }
     .stDownloadButton > button, .stButton > button { border-radius: 10px; font-weight: 700; }
     .stDownloadButton > button { border-color: #15877d; color: #086c64; background: white; }
-    .stButton > button:focus, .stDownloadButton > button:focus {
+    .stButton > button:focus-visible, .stDownloadButton > button:focus-visible,
+    [data-baseweb="tab"]:focus-visible, [data-baseweb="select"]:focus-within,
+    input:focus-visible, [role="radio"]:focus-visible, [role="checkbox"]:focus-visible {
       outline: 3px solid #62c5ca; outline-offset: 2px;
     }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
     @media (max-width: 700px) {
       .block-container { padding: .8rem .8rem 3rem; }
       .mg-hero { padding: 1.6rem 1.25rem; border-radius: 18px; }
@@ -166,6 +235,9 @@ st.markdown(
       .mg-section { display: block; }
       .mg-section-copy { text-align: left; margin-top: .35rem; }
       .mg-status-row { grid-template-columns: 1fr; }
+      .mg-hero-flow { grid-template-columns: repeat(2,minmax(0,1fr)); }
+      .mg-review-queue { grid-template-columns: auto 1fr; }
+      .mg-review-link { grid-column: 1 / -1; text-align: center; }
     }
     </style>
     """,
@@ -216,13 +288,27 @@ with st.sidebar:
         '</div></div>',
         unsafe_allow_html=True,
     )
-    st.caption("STEP 1 OF 3 · CHOOSE A SOURCE")
+    st.caption("START HERE · CHOOSE A SOURCE")
     source = st.radio(
         "Data source",
         ["Guided demo", "Upload CSV"],
         help="The guided demo opens immediately and uses synthetic records.",
     )
     st.divider()
+    st.caption("JUMP TO")
+    st.markdown(
+        '<nav class="mg-nav" aria-label="Workspace sections">'
+        '<a href="#review-scope">1 · Assign roles</a>'
+        '<a href="#review-evidence">2 · Review evidence</a>'
+        '<a href="#reviewed-context">3 · Check source context</a>'
+        '<a href="#preview-changes">4 · Preview changes</a>'
+        '<a href="#optional-explanation">5 · Optional explanation</a>'
+        '<a href="#export-evidence">6 · Export evidence</a>'
+        '</nav>',
+        unsafe_allow_html=True,
+    )
+    st.divider()
+    st.caption("WORKFLOW")
     st.markdown(
         '<div class="mg-step"><div class="mg-step-num">1</div><div><strong>Load</strong>'
         '<span>Validate structure and screen potential identifiers.</span></div></div>'
@@ -244,7 +330,13 @@ st.markdown(
     'coverage, data quality, and potential identifier signals—without changing a single row.</div>'
     '<div class="mg-hero-meta"><span class="mg-chip">Deterministic checks</span>'
     '<span class="mg-chip">Source preserved</span><span class="mg-chip">Offline-ready demo</span>'
-    '<span class="mg-chip">Honest unknowns</span></div></div>',
+    '<span class="mg-chip">Honest unknowns</span></div>'
+    '<div class="mg-hero-flow">'
+    '<div class="mg-flow-step"><strong>01 · Validate</strong>Reject unsafe structure early</div>'
+    '<div class="mg-flow-step"><strong>02 · Inspect</strong>Measure evidence and unknowns</div>'
+    '<div class="mg-flow-step"><strong>03 · Preview</strong>Review changes on a copy</div>'
+    '<div class="mg-flow-step"><strong>04 · Export</strong>Carry evidence forward</div>'
+    '</div></div>',
     unsafe_allow_html=True,
 )
 
@@ -295,6 +387,7 @@ st.caption(
 )
 
 
+st.markdown('<div id="review-scope"></div>', unsafe_allow_html=True)
 st.markdown(
     '<div class="mg-section"><div><div class="mg-section-kicker">Step 2 · Assign roles</div>'
     '<div class="mg-section-title">Define the review scope</div></div>'
@@ -388,6 +481,7 @@ representation = report["representation"]
 quality = report["quality"]
 screening = report["identifier_screening"]
 
+st.markdown('<div id="review-evidence"></div>', unsafe_allow_html=True)
 st.markdown(
     '<div class="mg-section"><div><div class="mg-section-kicker">Step 3 · Review evidence</div>'
     f'<div class="mg-section-title">{escape(source_label)}</div></div>'
@@ -413,7 +507,32 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+review_count = len(representation["findings"]) + len(screening["findings"])
+if screening["findings"]:
+    review_title = f"{review_count} signal{'s' if review_count != 1 else ''} ready for review"
+    review_copy = (
+        "Start with Identifier screening, then confirm that the selected cohort scope matches "
+        "the intended study population."
+    )
+elif representation["findings"]:
+    review_title = f"{review_count} cohort signal{'s' if review_count != 1 else ''} ready for review"
+    review_copy = "Open Cohort evidence to inspect counts, denominators, and recorded labels."
+else:
+    review_title = "No configured review rule triggered"
+    review_copy = (
+        "The measurements are still descriptive. Inspect the evidence and limitations before "
+        "deciding whether this dataset fits the intended use."
+    )
+st.markdown(
+    f'<div class="mg-review-queue" role="status">'
+    f'<div class="mg-review-count" aria-label="{review_count} review signals">{review_count}</div>'
+    f'<div class="mg-review-copy"><strong>{escape(review_title)}</strong>'
+    f'<span>{escape(review_copy)}</span></div>'
+    '<a class="mg-review-link" href="#evidence-tabs">Review evidence ↓</a></div>',
+    unsafe_allow_html=True,
+)
 
+st.markdown('<div id="evidence-tabs"></div>', unsafe_allow_html=True)
 overview_tab, cohorts_tab, privacy_tab, quality_tab, data_tab = st.tabs(
     ["Overview", "Cohort evidence", "Identifier screening", "Data quality", "Data preview"]
 )
@@ -536,6 +655,36 @@ with quality_tab:
 with data_tab:
     st.dataframe(data.head(20), use_container_width=True, hide_index=True)
     st.caption("Showing the first 20 rows. The source dataset remains unchanged.")
+
+st.markdown('<div id="reviewed-context"></div>', unsafe_allow_html=True)
+st.markdown(
+    '<div class="mg-section"><div><div class="mg-section-kicker">Reviewed context · W04</div>'
+    '<div class="mg-section-title">Evidence behind the boundaries</div></div>'
+    '<div class="mg-section-copy">These reviewed sources explain why MedGuard reports limits. '
+    'They are context for human review, not retrieved advice or compliance clearance.</div></div>',
+    unsafe_allow_html=True,
+)
+source_columns = st.columns(len(REVIEWED_SOURCES))
+for source_column, source_item in zip(source_columns, REVIEWED_SOURCES):
+    with source_column:
+        st.markdown(
+            '<article class="mg-source-card">'
+            f'<div class="mg-source-label">{escape(source_item["label"])} · '
+            f'{escape(source_item["id"])}</div>'
+            f'<div class="mg-source-title">{escape(source_item["title"])}</div>'
+            f'<div class="mg-source-publisher">{escape(source_item["publisher"])}</div>'
+            f'<div class="mg-source-summary">{escape(source_item["summary"])}</div>'
+            f'<a class="mg-source-link" href="{escape(source_item["url"])}" '
+            'target="_blank" rel="noreferrer">Open reviewed source ↗</a>'
+            '</article>',
+            unsafe_allow_html=True,
+        )
+st.caption(
+    "Source inventory reviewed October 24, 2026. Retrieval and embeddings remain disabled until "
+    "they pass an end-to-end test."
+)
+
+st.markdown('<div id="preview-changes"></div>', unsafe_allow_html=True)
 st.markdown(
     '<div class="mg-section"><div><div class="mg-section-kicker">Controlled next step</div>'
     '<div class="mg-section-title">Preview supported changes</div></div>'
@@ -769,6 +918,7 @@ if preview_result and preview_current:
     export_report["change_preview"] = dict(preview_result)
     export_report["change_preview"]["accepted_for_export"] = accepted
 
+st.markdown('<div id="optional-explanation"></div>', unsafe_allow_html=True)
 st.markdown(
     '<div class="mg-section"><div><div class="mg-section-kicker">Optional · explicit request</div>'
     '<div class="mg-section-title">Explain the aggregate evidence</div></div>'
@@ -778,9 +928,10 @@ st.markdown(
     unsafe_allow_html=True,
 )
 st.markdown(
-    '<div class="mg-warning"><strong>Source-grounded RAG is disabled.</strong> The reviewed W04 '
-    'knowledge-source inventory is not present on main. Explanations are optional, unverified, '
-    'and never replace the measured audit evidence.</div>',
+    '<div class="mg-warning"><strong>Reviewed sources are available; retrieval is not.</strong> '
+    'W04 verified the source inventory shown above, but embedding and retrieval have not passed '
+    'an end-to-end test. The optional explanation uses aggregate audit evidence only and remains '
+    'unverified.</div>',
     unsafe_allow_html=True,
 )
 explanation_col, model_col = st.columns([2, 1])
@@ -858,6 +1009,7 @@ if explanation_result and explanation_current:
             st.write(f"- {limitation}")
     export_report["optional_explanation"] = explanation_result
 
+st.markdown('<div id="export-evidence"></div>', unsafe_allow_html=True)
 st.markdown(
     '<div class="mg-export"><div class="mg-section-kicker">Portable evidence</div>'
     '<div class="mg-title">Export the audit record</div>'
