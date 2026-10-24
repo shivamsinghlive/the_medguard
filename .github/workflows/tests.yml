@@ -1,0 +1,57 @@
+name: Deterministic tests
+
+# No model downloads, Ollama, or network-backed services are used by the tests.
+# UI tests mock the model as unavailable; RAG/embeddings are not exercised.
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  HF_HUB_OFFLINE: "1"
+  TRANSFORMERS_OFFLINE: "1"
+  ANONYMIZED_TELEMETRY: "False"
+  STREAMLIT_BROWSER_GATHER_USAGE_STATS: "false"
+
+jobs:
+  services:
+    name: Analysis services (minimal dependencies)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install minimal dependencies
+        run: python -m pip install pandas==2.1.4 numpy==1.26.2 pytest==7.4.3
+      - name: Run service tests
+        run: >
+          python -m pytest -q
+          tests/analysis/test_representation.py
+          tests/analysis/test_input_validation.py
+          tests/analysis/test_privacy_screening.py
+          tests/analysis/test_change_preview.py
+          tests/analysis/test_knowledge_sources.py
+
+  full:
+    name: Full suite (UI, integration, regressions)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install CPU-only torch, then project requirements
+        # requirements.lock.txt is macOS-specific; requirements.txt is portable.
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install -r requirements.txt
+      - name: Run full test suite
+        run: python -m pytest -q tests
